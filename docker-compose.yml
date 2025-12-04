@@ -284,6 +284,7 @@ services:
       - brainstudio-network
     environment:
       - OLLAMA_HOST=0.0.0.0:11434
+      - OLLAMA_API_KEY=${OLLAMA_API_KEY}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]

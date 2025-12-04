@@ -1,12 +1,17 @@
 import { useState } from 'react'
 import Header from './components/Header/Header'
 import Sidebar from './components/Sidebar/Sidebar'
-import MainContent from './components/MainContent/MainContent'
+import WorkflowsPage from './components/Pages/WorkflowsPage'
+import FeedbackPage from './components/Pages/FeedbackPage'
+import EinstellungenPage from './components/Pages/EinstellungenPage'
 import './App.css'
+
+export type PageId = 'workflows' | 'feedback' | 'einstellungen'
 
 function App() {
   const [suchbegriff, setSuchbegriff] = useState('')
   const [sidebarExpanded, setSidebarExpanded] = useState(false)
+  const [aktivSeite, setAktivSeite] = useState<PageId>('workflows')
 
   const handleSuche = (begriff: string) => {
     setSuchbegriff(begriff)
@@ -18,6 +23,23 @@ function App() {
     setSidebarExpanded(!sidebarExpanded)
   }
 
+  const handleNavigation = (seiteId: PageId) => {
+    setAktivSeite(seiteId)
+  }
+
+  const renderSeite = () => {
+    switch (aktivSeite) {
+      case 'workflows':
+        return <WorkflowsPage suchbegriff={suchbegriff} />
+      case 'feedback':
+        return <FeedbackPage suchbegriff={suchbegriff} />
+      case 'einstellungen':
+        return <EinstellungenPage suchbegriff={suchbegriff} />
+      default:
+        return <WorkflowsPage suchbegriff={suchbegriff} />
+    }
+  }
+
   return (
     <div className="app-container">
       <Header 
@@ -25,8 +47,12 @@ function App() {
         onMenuToggle={toggleSidebar}
       />
       <div className="app-body">
-        <Sidebar expanded={sidebarExpanded} />
-        <MainContent suchbegriff={suchbegriff} />
+        <Sidebar 
+          expanded={sidebarExpanded} 
+          aktivSeite={aktivSeite}
+          onNavigate={handleNavigation}
+        />
+        {renderSeite()}
       </div>
     </div>
   )

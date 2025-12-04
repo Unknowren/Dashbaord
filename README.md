@@ -142,7 +142,27 @@ ls -lh ./docker-data/ollama/models/manifests/registry.ollama.ai/library/
 
 ### Integration mit N8N
 
-In N8N Workflows kannst du Ollama nutzen:
+In N8N kannst du Ollama über einen **HTTP Request Node** nutzen:
+
+1. **Neuen HTTP Request Node erstellen**
+2. **Konfiguration:**
+   - Method: `POST`
+   - URL: `http://ollama:11434/api/generate`
+   - Authentication: `Generic Credential Type` → `Header Auth`
+   - Header Name: `Authorization`
+   - Header Value: `Bearer {{ $env.OLLAMA_API_KEY }}` (aus .env)
+
+3. **Body (JSON):**
+
+```json
+{
+  "model": "mistral",
+  "prompt": "{{ $json.input }}",
+  "stream": false
+}
+```
+
+**Alternativ ohne Auth (nur intern im Docker-Netzwerk):**
 
 ```json
 {
@@ -154,6 +174,19 @@ In N8N Workflows kannst du Ollama nutzen:
     "stream": false
   }
 }
+```
+
+### API Key Konfiguration
+
+Der Ollama API Key wird in `.env` definiert:
+
+```bash
+OLLAMA_API_KEY=sk-dein-generierter-key
+```
+
+Generiere einen neuen Key mit:
+```bash
+openssl rand -hex 32
 ```
 
 ### Performance-Tipps

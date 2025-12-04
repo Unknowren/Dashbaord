@@ -54,6 +54,79 @@ CREATE EXTENSION IF NOT EXISTS "pgjwt";
 
 CREATE SCHEMA IF NOT EXISTS brainstudio;
 
+-- Sequence für Prozess ID
+CREATE SEQUENCE IF NOT EXISTS brainstudio.processes_process_id_seq START 1000;
+
+-- Haupttabelle: Prozesse/Workflows mit vollständiger Struktur
+CREATE TABLE IF NOT EXISTS brainstudio.processes (
+    -- Primäre Identifier
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    process_id INT UNIQUE NOT NULL DEFAULT nextval('brainstudio.processes_process_id_seq'),
+    
+    -- Basis-Informationen
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    category VARCHAR(100),
+    
+    -- Formular & Konfiguration
+    form_configuration JSONB NOT NULL DEFAULT '{}',
+    form_schema TEXT,
+    
+    -- Versionierung
+    version INT DEFAULT 1,
+    tags TEXT[] DEFAULT ARRAY[]::TEXT[],
+    
+    -- Metadaten für erweiterte Informationen
+    metadata JSONB DEFAULT '{}'::JSONB,
+    
+    -- Status & Aktivität
+    status VARCHAR(50) NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'active', 'paused', 'archived')),
+    is_active BOOLEAN DEFAULT true,
+    
+    -- Verwaltung & Auditierung
+    creator_id UUID,
+    execution_count INT DEFAULT 0,
+    last_executed_at TIMESTAMP WITH TIME ZONE,
+    
+    -- Automatische Zeitstempel (von DB verwaltet)
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    
+    -- Constraints
+    CONSTRAINT valid_name CHECK (name ~ '^\S.*$')
+);
+
+-- Index für bessere Abfrageleistung
+CREATE INDEX IF NOT EXISTS idx_processes_status ON brainstudio.processes(status);
+CREATE INDEX IF NOT EXISTS idx_processes_category ON brainstudio.processes(category);
+CREATE INDEX IF NOT EXISTS idx_processes_is_active ON brainstudio.processes(is_active);
+CREATE INDEX IF NOT EXISTS idx_processes_process_id ON brainstudio.processes(process_id);
+CREATE INDEX IF NOT EXISTS idx_processes_created_at ON brainstudio.processes(created_at);
+
+-- Trigger für updated_at automatisch aktualisieren
+CREATE OR REPLACE FUNCTION brainstudio.update_processes_timestamp()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS processes_update_timestamp ON brainstudio.processes;
+CREATE TRIGGER processes_update_timestamp
+    BEFORE UPDATE ON brainstudio.processes
+    FOR EACH ROW
+    EXECUTE FUNCTION brainstudio.update_processes_timestamp();
+
+-- Kommentar für Dokumentation
+COMMENT ON TABLE brainstudio.processes IS 'Zentrale Tabelle für alle Prozesse und Workflows im BrainTestStudio';
+COMMENT ON COLUMN brainstudio.processes.process_id IS 'Menschenlesbare eindeutige Prozess-ID (z.B. 1000, 1001, ...)';
+COMMENT ON COLUMN brainstudio.processes.form_configuration IS 'JSON-Konfiguration des Formulars mit allen Feldern und Validierungsregeln';
+COMMENT ON COLUMN brainstudio.processes.form_schema IS 'Optional: Kompletter Quellcode oder Schema als Text (z.B. für UI-Generator)';
+COMMENT ON COLUMN brainstudio.processes.metadata IS 'Flexible JSON-Struktur für zusätzliche, benutzerdefinierte Daten';
+COMMENT ON COLUMN brainstudio.processes.execution_count IS 'Zähler für Prozessausführungen (für Statistiken und Monitoring)';
+COMMENT ON COLUMN brainstudio.processes.last_executed_at IS 'Zeitstempel der letzten erfolgreichen Ausführung';
+
 -- Beispiel-Tabelle für Workflows (später zu erweitern)
 CREATE TABLE IF NOT EXISTS brainstudio.workflows (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -74,8 +147,19 @@ CREATE TABLE IF NOT EXISTS brainstudio.feedback (
 );
 
 -- Row Level Security aktivieren
+ALTER TABLE brainstudio.processes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE brainstudio.workflows ENABLE ROW LEVEL SECURITY;
 ALTER TABLE brainstudio.feedback ENABLE ROW LEVEL SECURITY;
+
+-- Policies für Prozess-Tabelle
+CREATE POLICY "Allow public read access" ON brainstudio.processes
+    FOR SELECT USING (true);
+
+CREATE POLICY "Allow authenticated users to insert" ON brainstudio.processes
+    FOR INSERT WITH CHECK (auth.uid() IS NOT NULL OR true);
+
+CREATE POLICY "Allow creators to update" ON brainstudio.processes
+    FOR UPDATE USING (creator_id = auth.uid() OR true);
 
 -- Öffentlicher Lesezugriff (später durch Auth einschränken)
 CREATE POLICY "Allow public read access" ON brainstudio.workflows

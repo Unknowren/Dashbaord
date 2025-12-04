@@ -1,5 +1,6 @@
 import { Search, Menu } from 'lucide-react'
 import { useState } from 'react'
+import { DebugUserSwitcher } from './DebugUserSwitcher'
 import './Header.css'
 
 interface HeaderProps {
@@ -49,6 +50,8 @@ function Header({ onSuche, onMenuToggle }: HeaderProps) {
       </div>
       
       <div className="header-right">
+        {/* Debug User Switcher - nur im DEBUG=true Modus sichtbar */}
+        <DebugUserSwitcher />
         {/* Platzhalter für zukünftige Header-Elemente (z.B. Benachrichtigungen, Profil) */}
       </div>
     </header>

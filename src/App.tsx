@@ -34,7 +34,7 @@ function App() {
       case 'feedback':
         return <FeedbackPage suchbegriff={suchbegriff} />
       case 'einstellungen':
-        return <EinstellungenPage suchbegriff={suchbegriff} />
+        return <EinstellungenPage />
       default:
         return <WorkflowsPage suchbegriff={suchbegriff} />
     }

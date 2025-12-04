@@ -137,6 +137,38 @@ CREATE TABLE IF NOT EXISTS brainstudio.workflows (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Rollen-Tabelle (z.B. Admin, Editor, Viewer)
+CREATE TABLE IF NOT EXISTS brainstudio.roles (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(100) NOT NULL UNIQUE,
+    description TEXT,
+    permissions TEXT[] DEFAULT ARRAY[]::TEXT[],
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Benutzer-Tabelle
+CREATE TABLE IF NOT EXISTS brainstudio.users (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    email VARCHAR(255) NOT NULL UNIQUE,
+    display_name VARCHAR(255),
+    role_id UUID REFERENCES brainstudio.roles(id) ON DELETE SET NULL,
+    is_active BOOLEAN DEFAULT true,
+    metadata JSONB DEFAULT '{}'::JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Benutzer-Prozess Zuordnung (Wer kann welche Prozesse sehen/ausführen)
+CREATE TABLE IF NOT EXISTS brainstudio.user_process_access (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES brainstudio.users(id) ON DELETE CASCADE,
+    process_id INT NOT NULL REFERENCES brainstudio.processes(process_id) ON DELETE CASCADE,
+    access_level VARCHAR(50) DEFAULT 'view' CHECK (access_level IN ('view', 'edit', 'execute', 'admin')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, process_id)
+);
+
 -- Beispiel-Tabelle für Feedback (später zu erweitern)
 CREATE TABLE IF NOT EXISTS brainstudio.feedback (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -146,22 +178,121 @@ CREATE TABLE IF NOT EXISTS brainstudio.feedback (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Index für Benutzer-Zugriff
+CREATE INDEX IF NOT EXISTS idx_users_email ON brainstudio.users(email);
+CREATE INDEX IF NOT EXISTS idx_users_is_active ON brainstudio.users(is_active);
+CREATE INDEX IF NOT EXISTS idx_users_role_id ON brainstudio.users(role_id);
+CREATE INDEX IF NOT EXISTS idx_user_process_access_user_id ON brainstudio.user_process_access(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_process_access_process_id ON brainstudio.user_process_access(process_id);
+CREATE INDEX IF NOT EXISTS idx_roles_name ON brainstudio.roles(name);
+
+-- Trigger für updated_at automatisch aktualisieren
+CREATE OR REPLACE FUNCTION brainstudio.update_users_timestamp()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS users_update_timestamp ON brainstudio.users;
+CREATE TRIGGER users_update_timestamp
+    BEFORE UPDATE ON brainstudio.users
+    FOR EACH ROW
+    EXECUTE FUNCTION brainstudio.update_users_timestamp();
+
+CREATE OR REPLACE FUNCTION brainstudio.update_roles_timestamp()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS roles_update_timestamp ON brainstudio.roles;
+CREATE TRIGGER roles_update_timestamp
+    BEFORE UPDATE ON brainstudio.roles
+    FOR EACH ROW
+    EXECUTE FUNCTION brainstudio.update_roles_timestamp();
+
+-- Standard-Rollen erstellen (falls noch nicht vorhanden)
+INSERT INTO brainstudio.roles (name, description, permissions) VALUES
+    ('admin', 'Administrator mit vollständiger Kontrolle', ARRAY['create_process', 'edit_process', 'delete_process', 'manage_users', 'manage_roles', 'view_process']),
+    ('editor', 'Editor kann Prozesse erstellen und bearbeiten', ARRAY['create_process', 'edit_process', 'view_process']),
+    ('viewer', 'Viewer kann nur Prozesse anschauen', ARRAY['view_process'])
+ON CONFLICT (name) DO NOTHING;
+
 -- Row Level Security aktivieren
 ALTER TABLE brainstudio.processes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE brainstudio.roles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE brainstudio.users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE brainstudio.user_process_access ENABLE ROW LEVEL SECURITY;
 ALTER TABLE brainstudio.workflows ENABLE ROW LEVEL SECURITY;
 ALTER TABLE brainstudio.feedback ENABLE ROW LEVEL SECURITY;
 
--- Policies für Prozess-Tabelle
-CREATE POLICY "Allow public read access" ON brainstudio.processes
+-- ============================================
+-- ALLOW-ALL POLICIES (für Testing/Debugging)
+-- ============================================
+-- Im Debug-Modus werden alle Daten angezeigt
+-- Later: Restrict based on actual permissions
+
+-- Prozess Policies (erlauben alles für jetzt)
+DROP POLICY IF EXISTS "Allow public read access" ON brainstudio.processes;
+DROP POLICY IF EXISTS "Allow authenticated users to insert" ON brainstudio.processes;
+DROP POLICY IF EXISTS "Allow creators to update" ON brainstudio.processes;
+
+CREATE POLICY "Allow all read on processes" ON brainstudio.processes
     FOR SELECT USING (true);
 
-CREATE POLICY "Allow authenticated users to insert" ON brainstudio.processes
-    FOR INSERT WITH CHECK (auth.uid() IS NOT NULL OR true);
+CREATE POLICY "Allow all insert on processes" ON brainstudio.processes
+    FOR INSERT WITH CHECK (true);
 
-CREATE POLICY "Allow creators to update" ON brainstudio.processes
-    FOR UPDATE USING (creator_id = auth.uid() OR true);
+CREATE POLICY "Allow all update on processes" ON brainstudio.processes
+    FOR UPDATE USING (true);
 
--- Öffentlicher Lesezugriff (später durch Auth einschränken)
+CREATE POLICY "Allow all delete on processes" ON brainstudio.processes
+    FOR DELETE USING (true);
+
+-- Benutzer Policies (erlauben alles für jetzt)
+CREATE POLICY "Allow all read on users" ON brainstudio.users
+    FOR SELECT USING (true);
+
+CREATE POLICY "Allow all insert on users" ON brainstudio.users
+    FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Allow all update on users" ON brainstudio.users
+    FOR UPDATE USING (true);
+
+CREATE POLICY "Allow all delete on users" ON brainstudio.users
+    FOR DELETE USING (true);
+
+-- Rollen Policies (erlauben alles für jetzt)
+CREATE POLICY "Allow all read on roles" ON brainstudio.roles
+    FOR SELECT USING (true);
+
+CREATE POLICY "Allow all insert on roles" ON brainstudio.roles
+    FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Allow all update on roles" ON brainstudio.roles
+    FOR UPDATE USING (true);
+
+CREATE POLICY "Allow all delete on roles" ON brainstudio.roles
+    FOR DELETE USING (true);
+
+-- User Process Access Policies (erlauben alles für jetzt)
+CREATE POLICY "Allow all read on user_process_access" ON brainstudio.user_process_access
+    FOR SELECT USING (true);
+
+CREATE POLICY "Allow all insert on user_process_access" ON brainstudio.user_process_access
+    FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Allow all update on user_process_access" ON brainstudio.user_process_access
+    FOR UPDATE USING (true);
+
+CREATE POLICY "Allow all delete on user_process_access" ON brainstudio.user_process_access
+    FOR DELETE USING (true);
+
+-- Workflows & Feedback (erlauben alles)
 CREATE POLICY "Allow public read access" ON brainstudio.workflows
     FOR SELECT USING (true);
 

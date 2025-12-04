@@ -69,7 +69,7 @@ function EinstellungenPage(): React.ReactNode {
       }
     } catch (err) {
       console.error(`Fehler beim Laden von ${tab}:`, err)
-      setError(`Fehler beim Laden von ${tab}`)
+      setError(`Fehler beim Laden von ${tab}: ${err}`)
     } finally {
       setIsLoading(false)
     }

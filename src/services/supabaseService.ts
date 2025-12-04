@@ -3,12 +3,26 @@
  * Zentrale Stelle für alle Supabase-Operationen
  */
 
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { configService } from './configService';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'http://localhost:8000';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+// Supabase Client initialisieren
+let supabase: SupabaseClient | null = null;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export function getSupabaseClient(): SupabaseClient {
+  if (!supabase) {
+    const supabaseUrl = configService.getSupabaseUrl();
+    const supabaseAnonKey = configService.getSupabaseAnonKey();
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.error('Supabase URL oder Anon Key nicht konfiguriert');
+      throw new Error('Supabase credentials missing');
+    }
+
+    supabase = createClient(supabaseUrl, supabaseAnonKey);
+  }
+  return supabase;
+}
 
 /**
  * Typen für Datenbankoperationen
@@ -58,54 +72,84 @@ export interface RoleRow {
  */
 export const processOperations = {
   async getAllProcesses() {
-    const { data, error } = await supabase
-      .from('processes')
-      .select('*')
-      .order('created_at', { ascending: false });
+    try {
+      const client = getSupabaseClient();
+      const { data, error } = await client
+        .from('processes')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-    if (error) throw error;
-    return data as ProcessRow[];
+      if (error) throw error;
+      return (data || []) as ProcessRow[];
+    } catch (err) {
+      console.error('Fehler beim Laden von Prozessen:', err);
+      return [];
+    }
   },
 
   async getProcessById(processId: number) {
-    const { data, error } = await supabase
-      .from('processes')
-      .select('*')
-      .eq('process_id', processId)
-      .single();
+    try {
+      const client = getSupabaseClient();
+      const { data, error } = await client
+        .from('processes')
+        .select('*')
+        .eq('process_id', processId)
+        .single();
 
-    if (error) throw error;
-    return data as ProcessRow;
+      if (error) throw error;
+      return data as ProcessRow;
+    } catch (err) {
+      console.error('Fehler beim Laden des Prozesses:', err);
+      throw err;
+    }
   },
 
   async createProcess(process: Omit<ProcessRow, 'id' | 'process_id' | 'created_at' | 'updated_at'>) {
-    const { data, error } = await supabase
-      .from('processes')
-      .insert([process])
-      .select();
+    try {
+      const client = getSupabaseClient();
+      const { data, error } = await client
+        .from('processes')
+        .insert([process])
+        .select();
 
-    if (error) throw error;
-    return data[0] as ProcessRow;
+      if (error) throw error;
+      return data?.[0] as ProcessRow;
+    } catch (err) {
+      console.error('Fehler beim Erstellen des Prozesses:', err);
+      throw err;
+    }
   },
 
   async updateProcess(processId: number, updates: Partial<ProcessRow>) {
-    const { data, error } = await supabase
-      .from('processes')
-      .update(updates)
-      .eq('process_id', processId)
-      .select();
+    try {
+      const client = getSupabaseClient();
+      const { data, error } = await client
+        .from('processes')
+        .update(updates)
+        .eq('process_id', processId)
+        .select();
 
-    if (error) throw error;
-    return data[0] as ProcessRow;
+      if (error) throw error;
+      return data?.[0] as ProcessRow;
+    } catch (err) {
+      console.error('Fehler beim Aktualisieren des Prozesses:', err);
+      throw err;
+    }
   },
 
   async deleteProcess(processId: number) {
-    const { error } = await supabase
-      .from('processes')
-      .delete()
-      .eq('process_id', processId);
+    try {
+      const client = getSupabaseClient();
+      const { error } = await client
+        .from('processes')
+        .delete()
+        .eq('process_id', processId);
 
-    if (error) throw error;
+      if (error) throw error;
+    } catch (err) {
+      console.error('Fehler beim Löschen des Prozesses:', err);
+      throw err;
+    }
   },
 };
 
@@ -114,54 +158,84 @@ export const processOperations = {
  */
 export const userOperations = {
   async getAllUsers() {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .order('created_at', { ascending: false });
+    try {
+      const client = getSupabaseClient();
+      const { data, error } = await client
+        .from('users')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-    if (error) throw error;
-    return data as UserRow[];
+      if (error) throw error;
+      return (data || []) as UserRow[];
+    } catch (err) {
+      console.error('Fehler beim Laden von Benutzern:', err);
+      return [];
+    }
   },
 
   async getUserById(userId: string) {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', userId)
-      .single();
+    try {
+      const client = getSupabaseClient();
+      const { data, error } = await client
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .single();
 
-    if (error) throw error;
-    return data as UserRow;
+      if (error) throw error;
+      return data as UserRow;
+    } catch (err) {
+      console.error('Fehler beim Laden des Benutzers:', err);
+      throw err;
+    }
   },
 
   async createUser(user: Omit<UserRow, 'id' | 'created_at' | 'updated_at'>) {
-    const { data, error } = await supabase
-      .from('users')
-      .insert([user])
-      .select();
+    try {
+      const client = getSupabaseClient();
+      const { data, error } = await client
+        .from('users')
+        .insert([user])
+        .select();
 
-    if (error) throw error;
-    return data[0] as UserRow;
+      if (error) throw error;
+      return data?.[0] as UserRow;
+    } catch (err) {
+      console.error('Fehler beim Erstellen des Benutzers:', err);
+      throw err;
+    }
   },
 
   async updateUser(userId: string, updates: Partial<UserRow>) {
-    const { data, error } = await supabase
-      .from('users')
-      .update(updates)
-      .eq('id', userId)
-      .select();
+    try {
+      const client = getSupabaseClient();
+      const { data, error } = await client
+        .from('users')
+        .update(updates)
+        .eq('id', userId)
+        .select();
 
-    if (error) throw error;
-    return data[0] as UserRow;
+      if (error) throw error;
+      return data?.[0] as UserRow;
+    } catch (err) {
+      console.error('Fehler beim Aktualisieren des Benutzers:', err);
+      throw err;
+    }
   },
 
   async deleteUser(userId: string) {
-    const { error } = await supabase
-      .from('users')
-      .delete()
-      .eq('id', userId);
+    try {
+      const client = getSupabaseClient();
+      const { error } = await client
+        .from('users')
+        .delete()
+        .eq('id', userId);
 
-    if (error) throw error;
+      if (error) throw error;
+    } catch (err) {
+      console.error('Fehler beim Löschen des Benutzers:', err);
+      throw err;
+    }
   },
 };
 
@@ -170,53 +244,83 @@ export const userOperations = {
  */
 export const roleOperations = {
   async getAllRoles() {
-    const { data, error } = await supabase
-      .from('roles')
-      .select('*')
-      .order('created_at', { ascending: false });
+    try {
+      const client = getSupabaseClient();
+      const { data, error } = await client
+        .from('roles')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-    if (error) throw error;
-    return data as RoleRow[];
+      if (error) throw error;
+      return (data || []) as RoleRow[];
+    } catch (err) {
+      console.error('Fehler beim Laden von Rollen:', err);
+      return [];
+    }
   },
 
   async getRoleById(roleId: string) {
-    const { data, error } = await supabase
-      .from('roles')
-      .select('*')
-      .eq('id', roleId)
-      .single();
+    try {
+      const client = getSupabaseClient();
+      const { data, error } = await client
+        .from('roles')
+        .select('*')
+        .eq('id', roleId)
+        .single();
 
-    if (error) throw error;
-    return data as RoleRow;
+      if (error) throw error;
+      return data as RoleRow;
+    } catch (err) {
+      console.error('Fehler beim Laden der Rolle:', err);
+      throw err;
+    }
   },
 
   async createRole(role: Omit<RoleRow, 'id' | 'created_at' | 'updated_at'>) {
-    const { data, error } = await supabase
-      .from('roles')
-      .insert([role])
-      .select();
+    try {
+      const client = getSupabaseClient();
+      const { data, error } = await client
+        .from('roles')
+        .insert([role])
+        .select();
 
-    if (error) throw error;
-    return data[0] as RoleRow;
+      if (error) throw error;
+      return data?.[0] as RoleRow;
+    } catch (err) {
+      console.error('Fehler beim Erstellen der Rolle:', err);
+      throw err;
+    }
   },
 
   async updateRole(roleId: string, updates: Partial<RoleRow>) {
-    const { data, error } = await supabase
-      .from('roles')
-      .update(updates)
-      .eq('id', roleId)
-      .select();
+    try {
+      const client = getSupabaseClient();
+      const { data, error } = await client
+        .from('roles')
+        .update(updates)
+        .eq('id', roleId)
+        .select();
 
-    if (error) throw error;
-    return data[0] as RoleRow;
+      if (error) throw error;
+      return data?.[0] as RoleRow;
+    } catch (err) {
+      console.error('Fehler beim Aktualisieren der Rolle:', err);
+      throw err;
+    }
   },
 
   async deleteRole(roleId: string) {
-    const { error } = await supabase
-      .from('roles')
-      .delete()
-      .eq('id', roleId);
+    try {
+      const client = getSupabaseClient();
+      const { error } = await client
+        .from('roles')
+        .delete()
+        .eq('id', roleId);
 
-    if (error) throw error;
+      if (error) throw error;
+    } catch (err) {
+      console.error('Fehler beim Löschen der Rolle:', err);
+      throw err;
+    }
   },
 };

@@ -1,17 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
-import { userOperations } from '../../services/supabaseService';
+import { userOperations, UserRow } from '../../services/supabaseService';
 import { configService } from '../../services/configService';
 import './DebugUserSwitcher.css';
 
-interface User {
-  id: string;
-  email: string;
-  display_name: string | null;
-}
-
 export const DebugUserSwitcher: React.FC = () => {
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<UserRow[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -35,9 +29,9 @@ export const DebugUserSwitcher: React.FC = () => {
 
       // Wenn noch kein User ausgewählt, wähle den ersten
       if (data.length > 0 && !selectedUserId) {
-        setSelectedUserId(data[0].id);
-        // Speichern in localStorage für Persistenz über Refreshes
-        localStorage.setItem('debug_selected_user', data[0].id);
+        const firstUserId = data[0].id;
+        setSelectedUserId(firstUserId);
+        localStorage.setItem('debug_selected_user', firstUserId);
       } else if (selectedUserId) {
         // Versuche den gespeicherten User zu laden
         const saved = localStorage.getItem('debug_selected_user');
@@ -48,6 +42,8 @@ export const DebugUserSwitcher: React.FC = () => {
     } catch (err) {
       console.error('Fehler beim Laden der Benutzer:', err);
       setError('Benutzer konnten nicht geladen werden');
+      // Fallback: Wenn Supabase nicht verfügbar ist, leer lassen
+      setUsers([]);
     } finally {
       setIsLoading(false);
     }
@@ -57,7 +53,7 @@ export const DebugUserSwitcher: React.FC = () => {
     setSelectedUserId(userId);
     localStorage.setItem('debug_selected_user', userId);
     setIsOpen(false);
-    
+
     // Dispatch Event für andere Komponenten
     window.dispatchEvent(
       new CustomEvent('debugUserChanged', { detail: { userId } })

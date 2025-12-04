@@ -148,9 +148,6 @@ In N8N kannst du Ollama über einen **HTTP Request Node** nutzen:
 2. **Konfiguration:**
    - Method: `POST`
    - URL: `http://ollama:11434/api/generate`
-   - Authentication: `Generic Credential Type` → `Header Auth`
-   - Header Name: `Authorization`
-   - Header Value: `Bearer {{ $env.OLLAMA_API_KEY }}` (aus .env)
 
 3. **Body (JSON):**
 
@@ -160,33 +157,6 @@ In N8N kannst du Ollama über einen **HTTP Request Node** nutzen:
   "prompt": "{{ $json.input }}",
   "stream": false
 }
-```
-
-**Alternativ ohne Auth (nur intern im Docker-Netzwerk):**
-
-```json
-{
-  "method": "POST",
-  "url": "http://ollama:11434/api/generate",
-  "body": {
-    "model": "mistral",
-    "prompt": "{{ $node.PreviousNode.json.input }}",
-    "stream": false
-  }
-}
-```
-
-### API Key Konfiguration
-
-Der Ollama API Key wird in `.env` definiert:
-
-```bash
-OLLAMA_API_KEY=sk-dein-generierter-key
-```
-
-Generiere einen neuen Key mit:
-```bash
-openssl rand -hex 32
 ```
 
 ### Performance-Tipps

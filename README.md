@@ -40,6 +40,7 @@ cp .env.example .env
 | N8N | http://localhost:5678 | Workflow Automation |
 | Supabase Studio | http://localhost:3001 | Datenbank Admin |
 | Supabase API | http://localhost:8000 | REST API |
+| Ollama | http://localhost:11434 | Local LLM Engine |
 
 ### Stoppen
 
@@ -89,9 +90,77 @@ npm run dev
 - [x] Docker-basiertes Deployment
 - [x] N8N Workflow Integration
 - [x] Supabase Datenbank
+- [x] Ollama Local LLM Integration
 - [ ] Live-Formulare mit Echtzeit-Feedback
 - [ ] Workflow-Pipeline-Übersicht
 - [ ] Benutzerauthentifizierung
+
+## 🤖 Ollama LLM Integration
+
+Ollama ermöglicht die lokale Nutzung von großen Sprachmodellen ohne externe APIs. Die Modelle werden persistent in `./docker-data/ollama` gespeichert.
+
+### Modelle verwalten
+
+**Verfügbare Modelle anzeigen:**
+```bash
+docker exec brainstudio-ollama ollama list
+```
+
+**Neues Modell laden:**
+```bash
+# Mistral (klein, schnell, ~4GB)
+docker exec brainstudio-ollama ollama pull mistral
+
+# Llama 2 (größer, besser, ~7GB)
+docker exec brainstudio-ollama ollama pull llama2
+
+# Neural Chat (spezialisiert für Chat, ~5GB)
+docker exec brainstudio-ollama ollama pull neural-chat
+
+# OpenChat (leicht, ~4GB)
+docker exec brainstudio-ollama ollama pull openchat
+```
+
+**Modell testen (Streaming Response):**
+```bash
+curl http://localhost:11434/api/generate -d '{
+  "model": "mistral",
+  "prompt": "Erkläre Künstliche Intelligenz in 3 Sätzen",
+  "stream": true
+}' | jq '.'
+```
+
+**Modell löschen:**
+```bash
+docker exec brainstudio-ollama ollama rm mistral
+```
+
+**Modell-Speichernutzung prüfen:**
+```bash
+ls -lh ./docker-data/ollama/models/manifests/registry.ollama.ai/library/
+```
+
+### Integration mit N8N
+
+In N8N Workflows kannst du Ollama nutzen:
+
+```json
+{
+  "method": "POST",
+  "url": "http://ollama:11434/api/generate",
+  "body": {
+    "model": "mistral",
+    "prompt": "{{ $node.PreviousNode.json.input }}",
+    "stream": false
+  }
+}
+```
+
+### Performance-Tipps
+
+- **Kleine Modelle** (mistral, neural-chat): Schneller, weniger Speicher
+- **Große Modelle** (llama2 13b): Bessere Qualität, länger Rechenzeit
+- **GPU-Beschleunigung** auf macOS/Windows: Optional, Ollama nutzt CPU wenn kein GPU-Support
 
 ## 🎨 Design
 

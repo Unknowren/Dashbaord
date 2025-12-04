@@ -1,0 +1,47 @@
+# Docker Build Ignore
+# ============================================
+# Dateien die nicht in den Docker Build Context gehören
+
+# Git
+.git
+.gitignore
+
+# Docker
+docker-data/
+docker-compose.yml
+Dockerfile
+.dockerignore
+
+# Dependencies (werden im Container neu installiert)
+node_modules/
+
+# Build Output
+dist/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Tests
+coverage/
+*.lcov
+
+# Dokumentation
+*.md
+!README.md
+
+# Scripts
+*.sh

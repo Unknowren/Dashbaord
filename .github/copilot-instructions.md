@@ -2,12 +2,27 @@
 
 ## Projektübersicht
 BrainTestStudio ist ein React-basiertes Workflow-Dashboard mit deutscher Benutzeroberfläche.
+Das Projekt läuft in einer Docker-Umgebung mit N8N und Supabase.
 
 ## Technologie-Stack
 - React 18 mit TypeScript
 - Vite als Build-Tool
 - Lucide React für Icons
-- CSS Modules für Styling
+- CSS (keine CSS Modules)
+- Docker Compose für Deployment
+- N8N für Workflow-Automatisierung
+- Supabase (PostgreSQL) als Datenbank
+- Nginx als Webserver
+
+## Docker Services
+
+| Service | Port | Beschreibung |
+|---------|------|--------------|
+| Frontend | 3000 | React Dashboard (Nginx) |
+| N8N | 5678 | Workflow Automation |
+| Supabase Studio | 3001 | Datenbank Admin UI |
+| Supabase API | 8000 | REST API (Kong Gateway) |
+| PostgreSQL | 5432 | Datenbank |
 
 ## Bereichs-Referenzen
 
@@ -25,12 +40,28 @@ Bei Änderungen können folgende IDs verwendet werden:
 
 ## Komponenten-Struktur
 
-```
+```text
 src/components/
 ├── Header/          → Header.tsx, Header.css
 ├── Sidebar/         → Sidebar.tsx, Sidebar.css
 └── MainContent/     → MainContent.tsx, MainContent.css
 ```
+
+## Docker-Struktur
+
+```text
+docker/
+├── nginx/           → Webserver Konfiguration
+├── postgres/        → Datenbank Init-Skripte
+└── kong/            → API Gateway Konfiguration
+```
+
+## Wichtige Dateien
+
+- `.env` - Umgebungsvariablen (NICHT in Git!)
+- `.env.example` - Vorlage für Kollegen
+- `docker-compose.yml` - Container Orchestrierung
+- `docker-data/` - Persistente Daten (NICHT in Git!)
 
 ## Coding-Konventionen
 

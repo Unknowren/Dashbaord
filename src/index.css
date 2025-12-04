@@ -1,0 +1,54 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  /* Farbschema basierend auf dem Bild */
+  --color-header-bg: #8a8a8a;
+  --color-sidebar-bg: #9a9a9a;
+  --color-main-bg: #ffffff;
+  --color-border: #707070;
+  --color-text-dark: #333333;
+  --color-text-light: #666666;
+  --color-icon: #4a4a4a;
+  --color-search-bg: #ffffff;
+  --color-hover: #7a7a7a;
+  
+  /* Größen */
+  --header-height: 50px;
+  --sidebar-width: 60px;
+  --sidebar-expanded-width: 240px;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+}
+
+body {
+  background-color: var(--color-main-bg);
+  color: var(--color-text-dark);
+  overflow: hidden;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
+}

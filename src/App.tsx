@@ -1,61 +1,78 @@
-import { useState } from 'react'
-import Header from './components/Header/Header'
-import Sidebar from './components/Sidebar/Sidebar'
-import WorkflowsPage from './components/Pages/WorkflowsPage'
-import FeedbackPage from './components/Pages/FeedbackPage'
-import EinstellungenPage from './components/Pages/EinstellungenPage'
-import './App.css'
-
-export type PageId = 'workflows' | 'feedback' | 'einstellungen'
+import { useState, useEffect } from "react";
+import "./App.css";
 
 function App() {
-  const [suchbegriff, setSuchbegriff] = useState('')
-  const [sidebarExpanded, setSidebarExpanded] = useState(false)
-  const [aktivSeite, setAktivSeite] = useState<PageId>('workflows')
+  const [page, setPage] = useState("workflows");
+  const [mounted, setMounted] = useState(false);
 
-  const handleSuche = (begriff: string) => {
-    setSuchbegriff(begriff)
-    // Hier später Webhook-Integration für Filterung
-    console.log('Suche nach:', begriff)
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const handlePageChange = (newPage: string) => {
+    console.log("Changing page to:", newPage);
+    setPage(newPage);
+  };
+
+  let content;
+  if (page === "feedback") {
+    content = (
+      <div>
+        <h2>Feedback</h2>
+        <p>Feedback-System für Benutzer</p>
+      </div>
+    );
+  } else if (page === "einstellungen") {
+    content = (
+      <div>
+        <h2>Einstellungen</h2>
+        <p>Konfiguration und Verwaltung</p>
+      </div>
+    );
+  } else {
+    content = (
+      <div>
+        <h2>Workflows</h2>
+        <p>Workflow-Verwaltung und Automatisierung</p>
+      </div>
+    );
   }
 
-  const toggleSidebar = () => {
-    setSidebarExpanded(!sidebarExpanded)
-  }
-
-  const handleNavigation = (seiteId: PageId) => {
-    setAktivSeite(seiteId)
-  }
-
-  const renderSeite = () => {
-    switch (aktivSeite) {
-      case 'workflows':
-        return <WorkflowsPage suchbegriff={suchbegriff} />
-      case 'feedback':
-        return <FeedbackPage suchbegriff={suchbegriff} />
-      case 'einstellungen':
-        return <EinstellungenPage />
-      default:
-        return <WorkflowsPage suchbegriff={suchbegriff} />
-    }
+  if (!mounted) {
+    return <div>Lädt...</div>;
   }
 
   return (
-    <div className="app-container">
-      <Header 
-        onSuche={handleSuche} 
-        onMenuToggle={toggleSidebar}
-      />
-      <div className="app-body">
-        <Sidebar 
-          expanded={sidebarExpanded} 
-          aktivSeite={aktivSeite}
-          onNavigate={handleNavigation}
-        />
-        {renderSeite()}
+    <div className="app">
+      <header className="header">
+        <button type="button" onClick={() => alert("Menu clicked!")}>
+          Menu
+        </button>
+        <h1>BrainTestStudio</h1>
+      </header>
+
+      <div className="container">
+        <aside className="sidebar">
+          <nav>
+            <button type="button" onClick={() => handlePageChange("workflows")}>
+              Workflows
+            </button>
+            <button type="button" onClick={() => handlePageChange("feedback")}>
+              Feedback
+            </button>
+            <button
+              type="button"
+              onClick={() => handlePageChange("einstellungen")}
+            >
+              Einstellungen
+            </button>
+          </nav>
+        </aside>
+
+        <main className="content">{content}</main>
       </div>
     </div>
-  )
+  );
 }
 
-export default App
+export default App;

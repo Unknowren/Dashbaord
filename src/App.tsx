@@ -36,20 +36,6 @@ function App() {
     }
   };
 
-  // Dynamischer Seitentitel
-  const getPageTitle = () => {
-    switch (page) {
-      case "workflows":
-        return "Workflows";
-      case "feedback":
-        return "Feedback";
-      case "einstellungen":
-        return "Einstellungen";
-      default:
-        return "Dashboard";
-    }
-  };
-
   let content;
   if (page === "feedback") {
     content = (
@@ -120,9 +106,6 @@ function App() {
 
         <main className="main-content">
           <header className="header">
-            <div className="header-left">
-              <h1>{getPageTitle()}</h1>
-            </div>
             <div className="header-search">
               <Search size={18} />
               <input

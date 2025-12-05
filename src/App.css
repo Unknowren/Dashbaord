@@ -183,13 +183,49 @@
 }
 
 .header-left {
-  flex: 1;
+  flex-shrink: 0;
 }
 
 .header-left h1 {
   font-size: 1.5rem;
   font-weight: 700;
   color: var(--text-primary);
+}
+
+.header-search {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+  max-width: 500px;
+  background: var(--dark-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  transition: all 0.2s ease;
+}
+
+.header-search:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(45, 108, 162, 0.2);
+}
+
+.header-search svg {
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.header-search input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+
+.header-search input::placeholder {
+  color: var(--text-secondary);
 }
 
 .header-right {

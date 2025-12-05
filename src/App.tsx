@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
-import { Menu, Send, Settings, MessageSquare, Zap } from "lucide-react";
+import { Menu, Settings, MessageSquare, Zap, Search } from "lucide-react";
 import "./App.css";
 
 function App() {
   const [page, setPage] = useState("workflows");
   const [mounted, setMounted] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     setMounted(true);
@@ -14,6 +15,35 @@ function App() {
   const handlePageChange = (newPage: string) => {
     console.log("Changing page to:", newPage);
     setPage(newPage);
+    setSearchQuery(""); // Reset search when changing page
+  };
+
+  // Dynamischer Suchplatzhalter je nach Seite
+  const getSearchPlaceholder = () => {
+    switch (page) {
+      case "workflows":
+        return "Workflows durchsuchen...";
+      case "feedback":
+        return "Feedback durchsuchen...";
+      case "einstellungen":
+        return "Einstellungen durchsuchen...";
+      default:
+        return "Suchen...";
+    }
+  };
+
+  // Dynamischer Seitentitel
+  const getPageTitle = () => {
+    switch (page) {
+      case "workflows":
+        return "Workflows";
+      case "feedback":
+        return "Feedback";
+      case "einstellungen":
+        return "Einstellungen";
+      default:
+        return "Dashboard";
+    }
   };
 
   let content;
@@ -97,12 +127,16 @@ function App() {
         <main className="main-content">
           <header className="header">
             <div className="header-left">
-              <h1>BrainTestStudio</h1>
+              <h1>{getPageTitle()}</h1>
             </div>
-            <div className="header-right">
-              <button type="button" className="search-btn" title="Search">
-                <Send size={18} />
-              </button>
+            <div className="header-search">
+              <Search size={18} />
+              <input
+                type="text"
+                placeholder={getSearchPlaceholder()}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
             </div>
           </header>
           <div className="content">{content}</div>

@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { Menu, Settings, MessageSquare, Zap, Search } from "lucide-react";
 import "./App.css";
+import WorkflowsPage from "./components/WorkflowsPage";
+import "./components/WorkflowsPage.css";
 
 function App() {
   const [page, setPage] = useState("workflows");
@@ -62,12 +64,7 @@ function App() {
       </div>
     );
   } else {
-    content = (
-      <div>
-        <h2>Workflows</h2>
-        <p>Workflow-Verwaltung und Automatisierung</p>
-      </div>
-    );
+    content = <WorkflowsPage searchQuery={searchQuery} />;
   }
 
   if (!mounted) {

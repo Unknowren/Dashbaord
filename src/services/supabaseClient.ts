@@ -10,28 +10,29 @@
 
 import { createClient } from "@supabase/supabase-js";
 
-// Umgebungsvariablen laden
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "http://localhost:8000";
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
+// Fallback-Werte für lokale Entwicklung (Supabase Demo Keys)
+const DEFAULT_URL = "http://localhost:8000";
+const DEFAULT_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0";
 
-// Warnung wenn Key fehlt
-if (!supabaseAnonKey) {
-  console.warn("⚠️ VITE_SUPABASE_ANON_KEY ist nicht gesetzt!");
+// Umgebungsvariablen laden mit Fallback
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || DEFAULT_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || DEFAULT_ANON_KEY;
+
+// Debug-Logging
+if (import.meta.env.DEV) {
+  console.log("🔗 Supabase URL:", supabaseUrl);
+  console.log("🔑 Using", import.meta.env.VITE_SUPABASE_ANON_KEY ? "env key" : "default key");
 }
 
-// Supabase Client erstellen
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+// Supabase Client erstellen mit brainstudio Schema
+const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   db: {
-    schema: "brainstudio", // Unser Schema
+    schema: "brainstudio",
   },
   auth: {
-    persistSession: false, // Keine Session-Persistenz für jetzt
+    persistSession: false,
   },
 });
 
-// Debug-Logging
-if (import.meta.env.VITE_DEBUG === "true") {
-  console.log("🔗 Supabase verbunden:", supabaseUrl);
-}
-
+export { supabase };
 export default supabase;

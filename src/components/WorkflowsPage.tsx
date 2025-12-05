@@ -7,8 +7,13 @@
  */
 
 import { useState, useEffect, useMemo, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { Zap, RefreshCw, AlertCircle, X, ChevronDown } from "lucide-react";
-import { getProcesses, searchProcesses, Process } from "../services/processService";
+import {
+  getProcesses,
+  searchProcesses,
+  Process,
+} from "../services/processService";
 import { getDefaultWorkflowFilters } from "../services/settingsService";
 
 interface WorkflowsPageProps {
@@ -23,13 +28,16 @@ function WorkflowsPage({ searchQuery }: WorkflowsPageProps) {
   const [processes, setProcesses] = useState<Process[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+  const navigate = useNavigate();
+
   // Filter States
   const [selectedStatuses, setSelectedStatuses] = useState<StatusFilter[]>([]);
-  const [selectedCategories, setSelectedCategories] = useState<CategoryFilter[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<
+    CategoryFilter[]
+  >([]);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
-  
+
   // Flag um zu verhindern dass Default-Filter mehrfach geladen werden
   const defaultFiltersLoaded = useRef(false);
 
@@ -54,11 +62,17 @@ function WorkflowsPage({ searchQuery }: WorkflowsPageProps) {
   const filteredProcesses = useMemo(() => {
     return processes.filter((process) => {
       // Status-Filter
-      if (selectedStatuses.length > 0 && !selectedStatuses.includes(process.status as StatusFilter)) {
+      if (
+        selectedStatuses.length > 0 &&
+        !selectedStatuses.includes(process.status as StatusFilter)
+      ) {
         return false;
       }
       // Kategorie-Filter
-      if (selectedCategories.length > 0 && (!process.category || !selectedCategories.includes(process.category))) {
+      if (
+        selectedCategories.length > 0 &&
+        (!process.category || !selectedCategories.includes(process.category))
+      ) {
         return false;
       }
       return true;
@@ -70,7 +84,7 @@ function WorkflowsPage({ searchQuery }: WorkflowsPageProps) {
     setLoading(true);
     setError(null);
     try {
-      const data = searchQuery 
+      const data = searchQuery
         ? await searchProcesses(searchQuery)
         : await getProcesses();
       setProcesses(data);
@@ -87,7 +101,7 @@ function WorkflowsPage({ searchQuery }: WorkflowsPageProps) {
     const loadDefaultFilters = async () => {
       if (defaultFiltersLoaded.current) return;
       defaultFiltersLoaded.current = true;
-      
+
       const defaults = await getDefaultWorkflowFilters();
       if (defaults.statuses.length > 0) {
         setSelectedStatuses(defaults.statuses as StatusFilter[]);
@@ -125,13 +139,17 @@ function WorkflowsPage({ searchQuery }: WorkflowsPageProps) {
   // Filter-Funktionen
   const toggleStatus = (status: StatusFilter) => {
     setSelectedStatuses((prev) =>
-      prev.includes(status) ? prev.filter((s) => s !== status) : [...prev, status]
+      prev.includes(status)
+        ? prev.filter((s) => s !== status)
+        : [...prev, status]
     );
   };
 
   const toggleCategory = (category: CategoryFilter) => {
     setSelectedCategories((prev) =>
-      prev.includes(category) ? prev.filter((c) => c !== category) : [...prev, category]
+      prev.includes(category)
+        ? prev.filter((c) => c !== category)
+        : [...prev, category]
     );
   };
 
@@ -148,7 +166,8 @@ function WorkflowsPage({ searchQuery }: WorkflowsPageProps) {
     setSelectedCategories([]);
   };
 
-  const hasActiveFilters = selectedStatuses.length > 0 || selectedCategories.length > 0;
+  const hasActiveFilters =
+    selectedStatuses.length > 0 || selectedCategories.length > 0;
 
   // Status Badge Farbe
   const getStatusColor = (status: string) => {
@@ -207,15 +226,21 @@ function WorkflowsPage({ searchQuery }: WorkflowsPageProps) {
         {/* Filter-Leiste */}
         <div className="workflows-filters">
           <p className="workflows-count">
-            {filteredProcesses.length} {filteredProcesses.length === 1 ? "Prozess" : "Prozesse"} gefunden
+            {filteredProcesses.length}{" "}
+            {filteredProcesses.length === 1 ? "Prozess" : "Prozesse"} gefunden
             {searchQuery && <span> für "{searchQuery}"</span>}
           </p>
 
           <div className="filter-controls">
             {/* Status Filter Dropdown */}
-            <div className="filter-dropdown" onClick={(e) => e.stopPropagation()}>
+            <div
+              className="filter-dropdown"
+              onClick={(e) => e.stopPropagation()}
+            >
               <button
-                className={`filter-button ${selectedStatuses.length > 0 ? "active" : ""}`}
+                className={`filter-button ${
+                  selectedStatuses.length > 0 ? "active" : ""
+                }`}
                 onClick={() => {
                   setShowStatusDropdown(!showStatusDropdown);
                   setShowCategoryDropdown(false);
@@ -223,7 +248,9 @@ function WorkflowsPage({ searchQuery }: WorkflowsPageProps) {
               >
                 Status
                 {selectedStatuses.length > 0 && (
-                  <span className="filter-count">{selectedStatuses.length}</span>
+                  <span className="filter-count">
+                    {selectedStatuses.length}
+                  </span>
                 )}
                 <ChevronDown size={16} />
               </button>
@@ -246,9 +273,14 @@ function WorkflowsPage({ searchQuery }: WorkflowsPageProps) {
 
             {/* Kategorie Filter Dropdown */}
             {availableCategories.length > 0 && (
-              <div className="filter-dropdown" onClick={(e) => e.stopPropagation()}>
+              <div
+                className="filter-dropdown"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <button
-                  className={`filter-button ${selectedCategories.length > 0 ? "active" : ""}`}
+                  className={`filter-button ${
+                    selectedCategories.length > 0 ? "active" : ""
+                  }`}
                   onClick={() => {
                     setShowCategoryDropdown(!showCategoryDropdown);
                     setShowStatusDropdown(false);
@@ -256,7 +288,9 @@ function WorkflowsPage({ searchQuery }: WorkflowsPageProps) {
                 >
                   Kategorie
                   {selectedCategories.length > 0 && (
-                    <span className="filter-count">{selectedCategories.length}</span>
+                    <span className="filter-count">
+                      {selectedCategories.length}
+                    </span>
                   )}
                   <ChevronDown size={16} />
                 </button>
@@ -308,15 +342,29 @@ function WorkflowsPage({ searchQuery }: WorkflowsPageProps) {
       {filteredProcesses.length === 0 ? (
         <div className="workflows-empty">
           <Zap size={48} />
-          <p>{hasActiveFilters ? "Keine Prozesse mit diesen Filtern" : "Keine Prozesse gefunden"}</p>
+          <p>
+            {hasActiveFilters
+              ? "Keine Prozesse mit diesen Filtern"
+              : "Keine Prozesse gefunden"}
+          </p>
         </div>
       ) : (
         <div className="workflows-grid">
           {filteredProcesses.map((process) => (
-            <div key={process.id} className="workflow-card">
+            <div
+              key={process.id || process.process_id}
+              className="workflow-card"
+              onClick={() =>
+                navigate(`/workflows/${process.process_id ?? process.id}`)
+              }
+            >
               <div className="workflow-card-header">
                 <span className="workflow-id">#{process.process_id}</span>
-                <span className={`workflow-status ${getStatusColor(process.status)}`}>
+                <span
+                  className={`workflow-status ${getStatusColor(
+                    process.status
+                  )}`}
+                >
                   {getStatusLabel(process.status)}
                 </span>
               </div>
@@ -328,11 +376,12 @@ function WorkflowsPage({ searchQuery }: WorkflowsPageProps) {
                 {process.category && (
                   <span className="workflow-category">{process.category}</span>
                 )}
-                {process.execution_count !== undefined && process.execution_count > 0 && (
-                  <span className="workflow-executions">
-                    {process.execution_count}x ausgeführt
-                  </span>
-                )}
+                {process.execution_count !== undefined &&
+                  process.execution_count > 0 && (
+                    <span className="workflow-executions">
+                      {process.execution_count}x ausgeführt
+                    </span>
+                  )}
               </div>
             </div>
           ))}

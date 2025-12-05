@@ -1,54 +1,46 @@
 import { useState, useEffect } from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+  NavLink,
+  useLocation,
+} from "react-router-dom";
 import { Menu, Settings, MessageSquare, Zap, Search } from "lucide-react";
 import "./App.css";
 import WorkflowsPage from "./components/WorkflowsPage";
 import "./components/WorkflowsPage.css";
 import EinstellungenPage from "./components/Pages/EinstellungenPage";
 import "./components/Pages/EinstellungenPage.css";
+import WorkflowDetailPage from "./components/Pages/WorkflowDetailPage";
+import FeedbackPage from "./components/Pages/FeedbackPage";
 
-function App() {
-  const [page, setPage] = useState("workflows");
+function AppShell() {
   const [mounted, setMounted] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const location = useLocation();
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  const handlePageChange = (newPage: string) => {
-    console.log("Changing page to:", newPage);
-    setPage(newPage);
-    setSearchQuery(""); // Reset search when changing page
-  };
-
-  // Dynamischer Suchplatzhalter je nach Seite
-  const getSearchPlaceholder = () => {
-    switch (page) {
-      case "workflows":
-        return "Workflows durchsuchen...";
-      case "feedback":
-        return "Feedback durchsuchen...";
-      case "einstellungen":
-        return "Einstellungen durchsuchen...";
-      default:
-        return "Suchen...";
+  // Reset Suche, wenn wir die Workflows-Seite verlassen
+  useEffect(() => {
+    if (!location.pathname.startsWith("/workflows")) {
+      setSearchQuery("");
     }
-  };
+  }, [location.pathname]);
 
-  let content;
-  if (page === "feedback") {
-    content = (
-      <div>
-        <h2>Feedback</h2>
-        <p>Feedback-System für Benutzer</p>
-      </div>
-    );
-  } else if (page === "einstellungen") {
-    content = <EinstellungenPage />;
-  } else {
-    content = <WorkflowsPage searchQuery={searchQuery} />;
-  }
+  const showSearch = location.pathname === "/workflows";
+
+  const getSearchPlaceholder = () => {
+    if (location.pathname === "/workflows") {
+      return "Workflows durchsuchen...";
+    }
+    return "Suchen...";
+  };
 
   if (!mounted) {
     return <div>Lädt...</div>;
@@ -67,59 +59,81 @@ function App() {
               type="button"
               className="toggle-btn"
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              title="Toggle sidebar"
+              title="Sidebar ein-/ausklappen"
             >
               <Menu size={20} />
             </button>
           </div>
 
           <nav className="sidebar-nav">
-            <button
-              type="button"
-              className={`nav-btn ${page === "workflows" ? "active" : ""}`}
-              onClick={() => handlePageChange("workflows")}
-              title="Workflows"
+            <NavLink
+              to="/workflows"
+              className={({ isActive }) =>
+                `nav-btn ${isActive ? "active" : ""}`
+              }
             >
-              <Zap size={20} />
+              <Zap size={18} />
               {sidebarOpen && <span>Workflows</span>}
-            </button>
-            <button
-              type="button"
-              className={`nav-btn ${page === "feedback" ? "active" : ""}`}
-              onClick={() => handlePageChange("feedback")}
-              title="Feedback"
+            </NavLink>
+            <NavLink
+              to="/feedback"
+              className={({ isActive }) =>
+                `nav-btn ${isActive ? "active" : ""}`
+              }
             >
-              <MessageSquare size={20} />
+              <MessageSquare size={18} />
               {sidebarOpen && <span>Feedback</span>}
-            </button>
-            <button
-              type="button"
-              className={`nav-btn ${page === "einstellungen" ? "active" : ""}`}
-              onClick={() => handlePageChange("einstellungen")}
-              title="Einstellungen"
+            </NavLink>
+            <NavLink
+              to="/einstellungen"
+              className={({ isActive }) =>
+                `nav-btn ${isActive ? "active" : ""}`
+              }
             >
-              <Settings size={20} />
+              <Settings size={18} />
               {sidebarOpen && <span>Einstellungen</span>}
-            </button>
+            </NavLink>
           </nav>
         </aside>
 
         <main className="main-content">
           <header className="header">
-            <div className="header-search">
-              <Search size={18} />
-              <input
-                type="text"
-                placeholder={getSearchPlaceholder()}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
+            {showSearch && (
+              <div className="header-search">
+                <Search size={18} />
+                <input
+                  type="text"
+                  placeholder={getSearchPlaceholder()}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+            )}
           </header>
-          <div className="content">{content}</div>
+
+          <div className="content">
+            <Routes>
+              <Route path="/" element={<Navigate to="/workflows" replace />} />
+              <Route
+                path="/workflows"
+                element={<WorkflowsPage searchQuery={searchQuery} />}
+              />
+              <Route path="/workflows/:processId" element={<WorkflowDetailPage />} />
+              <Route path="/feedback" element={<FeedbackPage />} />
+              <Route path="/einstellungen" element={<EinstellungenPage />} />
+            </Routes>
+          </div>
         </main>
       </div>
     </div>
+  );
+}
+
+function App() {
+  return (
+    <Router>
+      <AppShell />
+    </Router>
   );
 }
 

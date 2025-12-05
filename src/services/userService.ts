@@ -52,7 +52,9 @@ export async function getRoles(): Promise<Role[]> {
 /**
  * Neue Rolle erstellen
  */
-export async function createRole(role: Omit<Role, "id" | "created_at" | "updated_at">): Promise<Role> {
+export async function createRole(
+  role: Omit<Role, "id" | "created_at" | "updated_at">
+): Promise<Role> {
   const { data, error } = await supabase
     .from("roles")
     .insert(role)
@@ -70,7 +72,10 @@ export async function createRole(role: Omit<Role, "id" | "created_at" | "updated
 /**
  * Rolle aktualisieren
  */
-export async function updateRole(roleId: string, updates: Partial<Role>): Promise<Role> {
+export async function updateRole(
+  roleId: string,
+  updates: Partial<Role>
+): Promise<Role> {
   const { data, error } = await supabase
     .from("roles")
     .update(updates)
@@ -90,10 +95,7 @@ export async function updateRole(roleId: string, updates: Partial<Role>): Promis
  * Rolle löschen
  */
 export async function deleteRole(roleId: string): Promise<void> {
-  const { error } = await supabase
-    .from("roles")
-    .delete()
-    .eq("id", roleId);
+  const { error } = await supabase.from("roles").delete().eq("id", roleId);
 
   if (error) {
     console.error("❌ Fehler beim Löschen der Rolle:", error);
@@ -109,10 +111,12 @@ export async function deleteRole(roleId: string): Promise<void> {
 export async function getUsers(): Promise<User[]> {
   const { data, error } = await supabase
     .from("users")
-    .select(`
+    .select(
+      `
       *,
       role:roles(*)
-    `)
+    `
+    )
     .order("display_name", { ascending: true });
 
   if (error) {
@@ -133,10 +137,12 @@ export async function searchUsers(query: string): Promise<User[]> {
 
   const { data, error } = await supabase
     .from("users")
-    .select(`
+    .select(
+      `
       *,
       role:roles(*)
-    `)
+    `
+    )
     .or(`email.ilike.%${query}%,display_name.ilike.%${query}%`)
     .order("display_name", { ascending: true });
 
@@ -151,7 +157,9 @@ export async function searchUsers(query: string): Promise<User[]> {
 /**
  * Neuen Benutzer erstellen
  */
-export async function createUser(user: Omit<User, "id" | "created_at" | "updated_at" | "role">): Promise<User> {
+export async function createUser(
+  user: Omit<User, "id" | "created_at" | "updated_at" | "role">
+): Promise<User> {
   const { data, error } = await supabase
     .from("users")
     .insert(user)
@@ -169,10 +177,13 @@ export async function createUser(user: Omit<User, "id" | "created_at" | "updated
 /**
  * Benutzer aktualisieren
  */
-export async function updateUser(userId: string, updates: Partial<User>): Promise<User> {
+export async function updateUser(
+  userId: string,
+  updates: Partial<User>
+): Promise<User> {
   // Role entfernen falls vorhanden (ist ein Join, kein echtes Feld)
   const { role, ...cleanUpdates } = updates;
-  
+
   const { data, error } = await supabase
     .from("users")
     .update(cleanUpdates)
@@ -192,10 +203,7 @@ export async function updateUser(userId: string, updates: Partial<User>): Promis
  * Benutzer löschen
  */
 export async function deleteUser(userId: string): Promise<void> {
-  const { error } = await supabase
-    .from("users")
-    .delete()
-    .eq("id", userId);
+  const { error } = await supabase.from("users").delete().eq("id", userId);
 
   if (error) {
     console.error("❌ Fehler beim Löschen des Benutzers:", error);

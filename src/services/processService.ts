@@ -5,6 +5,7 @@
  */
 
 import supabase from "./supabaseClient";
+import { FormFieldDefinition } from "./settingsService";
 
 // TypeScript Interface für Prozess
 export interface Process {
@@ -15,13 +16,18 @@ export interface Process {
   category?: string;
   status: "draft" | "active" | "paused" | "archived";
   is_active?: boolean;
-  form_configuration?: Record<string, unknown>;
+  form_configuration?: ProcessFormConfiguration;
   metadata?: Record<string, unknown>;
   tags?: string[];
   version?: number;
   execution_count?: number;
   created_at?: string;
   updated_at?: string;
+}
+
+export interface ProcessFormConfiguration {
+  fields: FormFieldDefinition[];
+  values: Record<string, unknown>;
 }
 
 /**
@@ -52,7 +58,9 @@ export async function searchProcesses(query: string): Promise<Process[]> {
   const { data, error } = await supabase
     .from("processes")
     .select("*")
-    .or(`name.ilike.%${query}%,description.ilike.%${query}%,category.ilike.%${query}%`)
+    .or(
+      `name.ilike.%${query}%,description.ilike.%${query}%,category.ilike.%${query}%`
+    )
     .order("process_id", { ascending: true });
 
   if (error) {
@@ -84,7 +92,9 @@ export async function getProcess(processId: number): Promise<Process | null> {
 /**
  * Neuen Prozess erstellen
  */
-export async function createProcess(process: Omit<Process, "id" | "process_id" | "created_at" | "updated_at">): Promise<Process> {
+export async function createProcess(
+  process: Omit<Process, "id" | "process_id" | "created_at" | "updated_at">
+): Promise<Process> {
   const { data, error } = await supabase
     .from("processes")
     .insert(process)
@@ -102,7 +112,10 @@ export async function createProcess(process: Omit<Process, "id" | "process_id" |
 /**
  * Prozess aktualisieren
  */
-export async function updateProcess(processId: number, updates: Partial<Process>): Promise<Process> {
+export async function updateProcess(
+  processId: number,
+  updates: Partial<Process>
+): Promise<Process> {
   const { data, error } = await supabase
     .from("processes")
     .update(updates)
@@ -131,4 +144,14 @@ export async function deleteProcess(processId: number): Promise<void> {
     console.error("❌ Fehler beim Löschen des Prozesses:", error);
     throw error;
   }
+}
+
+/**
+ * Formular-Konfiguration eines Prozesses speichern
+ */
+export async function saveProcessFormConfiguration(
+  processId: number,
+  configuration: ProcessFormConfiguration
+): Promise<Process> {
+  return updateProcess(processId, { form_configuration: configuration });
 }

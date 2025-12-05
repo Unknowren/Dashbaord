@@ -12,6 +12,29 @@ export interface DefaultWorkflowFilters {
   categories: string[];
 }
 
+export type FormFieldType =
+  | "text"
+  | "email"
+  | "password"
+  | "number"
+  | "textarea"
+  | "select"
+  | "checkbox";
+
+export interface FormFieldDefinition {
+  id: string;
+  key: string;
+  label: string;
+  type: FormFieldType;
+  required: boolean;
+  description?: string;
+  placeholder?: string;
+  options?: string[];
+  validationPattern?: string;
+}
+
+const FORM_FIELD_SETTING_KEY = "form_field_definitions";
+
 export interface UserSetting {
   id?: string;
   setting_key: string;
@@ -58,9 +81,9 @@ export async function saveSetting<T>(key: string, value: T): Promise<boolean> {
   // Dann mit ID updaten
   const { error } = await supabase
     .from("user_settings")
-    .update({ 
+    .update({
       setting_value: value as Record<string, unknown>,
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
     })
     .eq("id", existing.id);
 
@@ -74,16 +97,88 @@ export async function saveSetting<T>(key: string, value: T): Promise<boolean> {
 }
 
 /**
+ * Einstellung speichern oder erstellen (Upsert)
+ */
+async function upsertSetting<T>(
+  key: string,
+  value: T,
+  description?: string
+): Promise<boolean> {
+  const { data: existing } = await supabase
+    .from("user_settings")
+    .select("id")
+    .eq("setting_key", key)
+    .single();
+
+  if (!existing) {
+    const { error } = await supabase.from("user_settings").insert({
+      setting_key: key,
+      setting_value: value as Record<string, unknown>,
+      description: description ?? null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+
+    if (error) {
+      console.error(`❌ Fehler beim Anlegen der Einstellung '${key}':`, error);
+      return false;
+    }
+
+    console.log(`✅ Einstellung '${key}' angelegt:`, value);
+    return true;
+  }
+
+  const { error } = await supabase
+    .from("user_settings")
+    .update({
+      setting_value: value as Record<string, unknown>,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", existing.id);
+
+  if (error) {
+    console.error(`❌ Fehler beim Aktualisieren der Einstellung '${key}':`, error);
+    return false;
+  }
+
+  console.log(`✅ Einstellung '${key}' aktualisiert:`, value);
+  return true;
+}
+
+/**
  * Standardfilter für Workflows laden
  */
 export async function getDefaultWorkflowFilters(): Promise<DefaultWorkflowFilters> {
-  const filters = await getSetting<DefaultWorkflowFilters>("default_workflow_filters");
+  const filters = await getSetting<DefaultWorkflowFilters>(
+    "default_workflow_filters"
+  );
   return filters || { statuses: [], categories: [] };
 }
 
 /**
  * Standardfilter für Workflows speichern
  */
-export async function saveDefaultWorkflowFilters(filters: DefaultWorkflowFilters): Promise<boolean> {
+export async function saveDefaultWorkflowFilters(
+  filters: DefaultWorkflowFilters
+): Promise<boolean> {
   return saveSetting("default_workflow_filters", filters);
+}
+
+/**
+ * Formularfeld-Definitionen laden
+ */
+export async function getFormFieldDefinitions(): Promise<FormFieldDefinition[]> {
+  const definitions = await getSetting<FormFieldDefinition[]>(
+    FORM_FIELD_SETTING_KEY
+  );
+  return definitions || [];
+}
+
+/**
+ * Formularfeld-Definitionen speichern (Upsert)
+ */
+export async function saveFormFieldDefinitions(
+  definitions: FormFieldDefinition[]
+): Promise<boolean> {
+  return upsertSetting(FORM_FIELD_SETTING_KEY, definitions, "Form Builder Felder");
 }

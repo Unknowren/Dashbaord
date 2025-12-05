@@ -1,13 +1,12 @@
-import { useEffect, useMemo, useState, ChangeEvent } from "react";
+import { useEffect, useState, ChangeEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   Check,
   Loader2,
-  Plus,
-  Save,
   Send,
   AlertCircle,
+  FileText,
 } from "lucide-react";
 import {
   getProcess,
@@ -15,10 +14,7 @@ import {
   ProcessFormConfiguration,
   saveProcessFormConfiguration,
 } from "../../services/processService";
-import {
-  FormFieldDefinition,
-  getFormFieldDefinitions,
-} from "../../services/settingsService";
+import { FormFieldDefinition } from "../../services/settingsService";
 import "./WorkflowDetailPage.css";
 
 interface ValidationResult {
@@ -33,15 +29,13 @@ function WorkflowDetailPage(): React.ReactNode {
   const navigate = useNavigate();
 
   const [process, setProcess] = useState<Process | null>(null);
-  const [definitions, setDefinitions] = useState<FormFieldDefinition[]>([]);
-  const [selectedFields, setSelectedFields] = useState<FormFieldDefinition[]>([]);
+  const [formFields, setFormFields] = useState<FormFieldDefinition[]>([]);
   const [formValues, setFormValues] = useState<FormValues>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [validation, setValidation] = useState<ValidationResult>({});
-  const [fieldToAdd, setFieldToAdd] = useState<string>("");
 
   useEffect(() => {
     const loadData = async () => {
@@ -54,24 +48,20 @@ function WorkflowDetailPage(): React.ReactNode {
           throw new Error("Ungültige Prozess-ID");
         }
 
-        const [proc, defs] = await Promise.all([
-          getProcess(pid),
-          getFormFieldDefinitions(),
-        ]);
-
+        const proc = await getProcess(pid);
         setProcess(proc);
-        setDefinitions(defs || []);
 
+        // Lade die Formularfelder aus der Prozess-Konfiguration
         const config = (proc?.form_configuration || {
           fields: [],
           values: {},
         }) as ProcessFormConfiguration;
 
-        setSelectedFields(config.fields || []);
+        setFormFields(config.fields || []);
         setFormValues((config.values as FormValues) || {});
       } catch (err) {
         console.error(err);
-        setError("Fehler beim Laden des Prozesses oder der Formularfelder");
+        setError("Fehler beim Laden des Prozesses");
       } finally {
         setLoading(false);
       }
@@ -79,12 +69,6 @@ function WorkflowDetailPage(): React.ReactNode {
 
     loadData();
   }, [processId]);
-
-  const availableDefinitions = useMemo(() => {
-    return definitions.filter(
-      (def) => !selectedFields.some((field) => field.id === def.id)
-    );
-  }, [definitions, selectedFields]);
 
   const statusLabel = (status?: string) => {
     switch (status) {
@@ -116,33 +100,13 @@ function WorkflowDetailPage(): React.ReactNode {
     }
   };
 
-  const addField = () => {
-    if (!fieldToAdd) return;
-    const def = definitions.find((d) => d.id === fieldToAdd);
-    if (!def) return;
-    setSelectedFields((prev) => [...prev, def]);
-    setFieldToAdd("");
-  };
-
-  const removeField = (id: string) => {
-    setSelectedFields((prev) => prev.filter((f) => f.id !== id));
-    setFormValues((prev) => {
-      const copy = { ...prev };
-      const field = selectedFields.find((f) => f.id === id);
-      if (field) {
-        delete copy[field.key];
-      }
-      return copy;
-    });
-  };
-
   const handleValueChange = (key: string, value: FormValue) => {
     setFormValues((prev) => ({ ...prev, [key]: value }));
   };
 
   const validateForm = () => {
     const next: ValidationResult = {};
-    selectedFields.forEach((field) => {
+    formFields.forEach((field) => {
       const value = formValues[field.key];
       if (field.required && (value === undefined || value === "")) {
         next[field.key] = "Pflichtfeld";
@@ -155,7 +119,11 @@ function WorkflowDetailPage(): React.ReactNode {
             next[field.key] = "Eingabe entspricht nicht der Richtlinie";
           }
         } catch (e) {
-          console.warn("Ungültiges Validierungs-Muster", field.validationPattern, e);
+          console.warn(
+            "Ungültiges Validierungs-Muster",
+            field.validationPattern,
+            e
+          );
         }
       }
     });
@@ -163,7 +131,9 @@ function WorkflowDetailPage(): React.ReactNode {
     return Object.keys(next).length === 0;
   };
 
-  const persistForm = async (actionLabel: string) => {
+  const handleSubmitForm = async () => {
+    if (!validateForm()) return;
+
     setSaving(true);
     setMessage(null);
     setError(null);
@@ -174,12 +144,12 @@ function WorkflowDetailPage(): React.ReactNode {
       }
 
       const configuration: ProcessFormConfiguration = {
-        fields: selectedFields,
+        fields: formFields,
         values: formValues,
       };
 
       await saveProcessFormConfiguration(pid, configuration);
-      setMessage(`${actionLabel} gespeichert`);
+      setMessage("Formular erfolgreich gespeichert");
     } catch (err) {
       console.error(err);
       setError("Speichern fehlgeschlagen. Bitte erneut versuchen.");
@@ -188,23 +158,16 @@ function WorkflowDetailPage(): React.ReactNode {
     }
   };
 
-  const handleSaveStructure = () => persistForm("Formularstruktur");
-
-  const handleSubmitForm = () => {
-    if (!validateForm()) return;
-    persistForm("Formular");
-  };
-
   if (loading) {
     return (
       <div className="page-loading">
         <Loader2 className="spin" size={24} />
-        <span>Lade Prozess...</span>
+        <span>Lade Workflow...</span>
       </div>
     );
   }
 
-  if (error) {
+  if (error && !process) {
     return (
       <div className="page-error">
         <AlertCircle size={24} />
@@ -218,7 +181,7 @@ function WorkflowDetailPage(): React.ReactNode {
     return (
       <div className="page-error">
         <AlertCircle size={24} />
-        <span>Prozess nicht gefunden</span>
+        <span>Workflow nicht gefunden</span>
         <button onClick={() => navigate(-1)}>Zurück</button>
       </div>
     );
@@ -240,83 +203,75 @@ function WorkflowDetailPage(): React.ReactNode {
         </div>
       </div>
 
-      {process.description && <p className="detail-description">{process.description}</p>}
+      {process.description && (
+        <p className="detail-description">{process.description}</p>
+      )}
 
-      <div className="field-builder">
-        <div className="builder-header">
-          <h2>Formularfelder</h2>
-          <p>Füge Felder aus dem Baukasten hinzu oder entferne sie wieder.</p>
+      <div className="form-container">
+        <div className="form-header">
+          <h2>Formular ausfüllen</h2>
+          <p>Fülle die folgenden Felder aus und sende das Formular ab.</p>
         </div>
 
-        <div className="builder-controls">
-          <select
-            value={fieldToAdd}
-            onChange={(e) => setFieldToAdd(e.target.value)}
-          >
-            <option value="">Feld auswählen...</option>
-            {availableDefinitions.map((def) => (
-              <option key={def.id} value={def.id}>
-                {def.label} ({def.type})
-              </option>
-            ))}
-          </select>
-          <button className="secondary-btn" onClick={addField} disabled={!fieldToAdd}>
-            <Plus size={16} />
-            Hinzufügen
-          </button>
-        </div>
-
-        {selectedFields.length === 0 ? (
-          <div className="placeholder-card">
-            <p>Noch keine Felder ausgewählt.</p>
-            <span>Wähle Felder aus dem Dropdown oben aus.</span>
+        {formFields.length === 0 ? (
+          <div className="empty-form">
+            <FileText size={48} />
+            <h3>Keine Formularfelder konfiguriert</h3>
+            <p>
+              Für diesen Workflow wurden noch keine Formularfelder festgelegt.
+              <br />
+              Die Konfiguration erfolgt über die Einstellungsseite.
+            </p>
           </div>
         ) : (
-          <div className="field-grid">
-            {selectedFields.map((field) => (
-              <div key={field.id} className="field-card">
-                <div className="field-card-header">
-                  <div>
-                    <p className="field-label">{field.label}</p>
-                    <span className="field-meta">{field.type}</span>
-                    {field.required && <span className="pill pill-required">Pflichtfeld</span>}
-                    {field.validationPattern && (
-                      <span className="pill pill-rule">Richtlinie aktiv</span>
-                    )}
-                  </div>
-                  <button className="ghost-btn" onClick={() => removeField(field.id)}>
-                    Entfernen
-                  </button>
-                </div>
-                {field.description && <p className="field-description">{field.description}</p>}
-                <div className="field-preview">
-                  {renderInput(field, formValues[field.key], (val) =>
-                    handleValueChange(field.key, val)
-                  )}
-                  {validation[field.key] && (
-                    <p className="field-error">{validation[field.key]}</p>
-                  )}
-                </div>
+          <div className="form-fields">
+            {formFields.map((field) => (
+              <div key={field.id} className="form-field">
+                <label htmlFor={field.key}>
+                  {field.label}
+                  {field.required && <span className="required-mark">*</span>}
+                </label>
+                {field.description && (
+                  <p className="field-hint">{field.description}</p>
+                )}
+                {renderInput(field, formValues[field.key], (val) =>
+                  handleValueChange(field.key, val)
+                )}
+                {validation[field.key] && (
+                  <p className="field-error">{validation[field.key]}</p>
+                )}
               </div>
             ))}
           </div>
         )}
       </div>
 
-      <div className="form-actions">
-        <button className="secondary-btn" onClick={handleSaveStructure} disabled={saving}>
-          {saving ? <Loader2 className="spin" size={16} /> : <Save size={16} />}
-          Struktur speichern
-        </button>
-        <button className="primary-btn" onClick={handleSubmitForm} disabled={saving}>
-          {saving ? <Loader2 className="spin" size={16} /> : <Send size={16} />}
-          Absenden & speichern
-        </button>
-      </div>
+      {formFields.length > 0 && (
+        <div className="form-actions">
+          <button
+            className="primary-btn"
+            onClick={handleSubmitForm}
+            disabled={saving}
+          >
+            {saving ? (
+              <Loader2 className="spin" size={16} />
+            ) : (
+              <Send size={16} />
+            )}
+            Absenden
+          </button>
+        </div>
+      )}
 
       {message && (
         <div className="inline-success">
           <Check size={16} /> {message}
+        </div>
+      )}
+
+      {error && process && (
+        <div className="inline-error">
+          <AlertCircle size={16} /> {error}
         </div>
       )}
     </div>
@@ -337,10 +292,16 @@ function renderInput(
       typeof value === "number"
         ? value
         : value === undefined
-          ? ""
-          : String(value),
-    onChange: (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
-      onChange(e.target.type === "checkbox" ? (e.target as HTMLInputElement).checked : e.target.value),
+        ? ""
+        : String(value),
+    onChange: (
+      e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+    ) =>
+      onChange(
+        e.target.type === "checkbox"
+          ? (e.target as HTMLInputElement).checked
+          : e.target.value
+      ),
   };
 
   switch (field.type) {
@@ -371,7 +332,9 @@ function renderInput(
     case "number":
       return <input {...commonProps} type="number" />;
     case "password":
-      return <input {...commonProps} type="password" autoComplete="new-password" />;
+      return (
+        <input {...commonProps} type="password" autoComplete="new-password" />
+      );
     case "email":
       return <input {...commonProps} type="email" autoComplete="email" />;
     default:

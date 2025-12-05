@@ -118,7 +118,10 @@ function AppShell() {
                 path="/workflows"
                 element={<WorkflowsPage searchQuery={searchQuery} />}
               />
-              <Route path="/workflows/:processId" element={<WorkflowDetailPage />} />
+              <Route
+                path="/workflows/:processId"
+                element={<WorkflowDetailPage />}
+              />
               <Route path="/feedback" element={<FeedbackPage />} />
               <Route path="/einstellungen" element={<EinstellungenPage />} />
             </Routes>

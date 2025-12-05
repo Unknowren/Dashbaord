@@ -1,5 +1,18 @@
 import { useState, useEffect } from "react";
-import { Save, Check, Loader2, Plus, Trash2, Pencil } from "lucide-react";
+import {
+  Save,
+  Check,
+  Loader2,
+  Plus,
+  Trash2,
+  Pencil,
+  ChevronRight,
+  Settings2,
+  FileText,
+  Users,
+  Shield,
+  Layers,
+} from "lucide-react";
 import {
   getDefaultWorkflowFilters,
   saveDefaultWorkflowFilters,
@@ -9,37 +22,64 @@ import {
   FormFieldDefinition,
   FormFieldType,
 } from "../../services/settingsService";
+import {
+  getProcesses,
+  Process,
+  ProcessFormConfiguration,
+  saveProcessFormConfiguration,
+} from "../../services/processService";
 import "./EinstellungenPage.css";
 
 type Tab = "standardfilter" | "formfelder" | "prozesse" | "benutzer" | "rollen";
 
-// Status-Optionen (gleich wie in WorkflowsPage)
 const statusOptions = [
-  { value: "active", label: "Aktiv" },
-  { value: "draft", label: "Entwurf" },
-  { value: "paused", label: "Pausiert" },
-  { value: "archived", label: "Archiviert" },
+  { value: "active", label: "Aktiv", color: "#10b981" },
+  { value: "draft", label: "Entwurf", color: "#6b7280" },
+  { value: "paused", label: "Pausiert", color: "#f59e0b" },
+  { value: "archived", label: "Archiviert", color: "#ef4444" },
 ];
 
-// Kategorie-Optionen (können erweitert werden)
 const categoryOptions = ["Befragung", "Testing", "Feedback"];
 
+const fieldTypes: { value: FormFieldType; label: string }[] = [
+  { value: "text", label: "Text" },
+  { value: "email", label: "E-Mail" },
+  { value: "password", label: "Passwort" },
+  { value: "number", label: "Zahl" },
+  { value: "textarea", label: "Textbereich" },
+  { value: "select", label: "Auswahl" },
+  { value: "checkbox", label: "Checkbox" },
+];
+
 function EinstellungenPage(): React.ReactNode {
-  const [activeTab, setActiveTab] = useState<Tab>("standardfilter");
+  const [activeTab, setActiveTab] = useState<Tab>("formfelder");
+
+  // Standardfilter State
   const [defaultFilters, setDefaultFilters] = useState<DefaultWorkflowFilters>({
     statuses: [],
     categories: [],
   });
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [filterLoading, setFilterLoading] = useState(true);
+  const [filterSaving, setFilterSaving] = useState(false);
+  const [filterSaved, setFilterSaved] = useState(false);
 
-  // Formularfeld-Builder
-  const [fieldsLoading, setFieldsLoading] = useState(false);
+  // Formularfelder State
+  const [formFields, setFormFields] = useState<FormFieldDefinition[]>([]);
+  const [fieldsLoading, setFieldsLoading] = useState(true);
   const [fieldsSaving, setFieldsSaving] = useState(false);
   const [fieldsSaved, setFieldsSaved] = useState(false);
-  const [formFields, setFormFields] = useState<FormFieldDefinition[]>([]);
-  const [editId, setEditId] = useState<string | null>(null);
+  const [editingField, setEditingField] = useState<FormFieldDefinition | null>(null);
+  const [showFieldForm, setShowFieldForm] = useState(false);
+
+  // Prozess-Konfiguration State
+  const [processes, setProcesses] = useState<Process[]>([]);
+  const [processesLoading, setProcessesLoading] = useState(true);
+  const [selectedProcess, setSelectedProcess] = useState<Process | null>(null);
+  const [processFields, setProcessFields] = useState<FormFieldDefinition[]>([]);
+  const [processSaving, setProcessSaving] = useState(false);
+  const [processSaved, setProcessSaved] = useState(false);
+
+  // Feld-Formular State
   const [fieldForm, setFieldForm] = useState({
     label: "",
     key: "",
@@ -51,29 +91,39 @@ function EinstellungenPage(): React.ReactNode {
     validationPattern: "",
   });
 
-  // Standardfilter beim Laden abrufen
+  // Daten laden
   useEffect(() => {
-    const loadFilters = async () => {
-      setLoading(true);
-      const filters = await getDefaultWorkflowFilters();
-      setDefaultFilters(filters);
-      setLoading(false);
-    };
     loadFilters();
-  }, []);
-
-  // Formularfelder laden
-  useEffect(() => {
-    const loadFields = async () => {
-      setFieldsLoading(true);
-      const defs = await getFormFieldDefinitions();
-      setFormFields(defs || []);
-      setFieldsLoading(false);
-    };
     loadFields();
+    loadProcesses();
   }, []);
 
-  // Status-Checkbox ändern
+  const loadFilters = async () => {
+    setFilterLoading(true);
+    const filters = await getDefaultWorkflowFilters();
+    setDefaultFilters(filters);
+    setFilterLoading(false);
+  };
+
+  const loadFields = async () => {
+    setFieldsLoading(true);
+    const defs = await getFormFieldDefinitions();
+    setFormFields(defs || []);
+    setFieldsLoading(false);
+  };
+
+  const loadProcesses = async () => {
+    setProcessesLoading(true);
+    try {
+      const procs = await getProcesses();
+      setProcesses(procs);
+    } catch (e) {
+      console.error(e);
+    }
+    setProcessesLoading(false);
+  };
+
+  // Filter Funktionen
   const toggleStatus = (status: string) => {
     setDefaultFilters((prev) => ({
       ...prev,
@@ -81,10 +131,9 @@ function EinstellungenPage(): React.ReactNode {
         ? prev.statuses.filter((s) => s !== status)
         : [...prev.statuses, status],
     }));
-    setSaved(false);
+    setFilterSaved(false);
   };
 
-  // Kategorie-Checkbox ändern
   const toggleCategory = (category: string) => {
     setDefaultFilters((prev) => ({
       ...prev,
@@ -92,20 +141,20 @@ function EinstellungenPage(): React.ReactNode {
         ? prev.categories.filter((c) => c !== category)
         : [...prev.categories, category],
     }));
-    setSaved(false);
+    setFilterSaved(false);
   };
 
-  // Filter speichern
   const handleSaveFilters = async () => {
-    setSaving(true);
+    setFilterSaving(true);
     const success = await saveDefaultWorkflowFilters(defaultFilters);
-    setSaving(false);
+    setFilterSaving(false);
     if (success) {
-      setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
+      setFilterSaved(true);
+      setTimeout(() => setFilterSaved(false), 3000);
     }
   };
 
+  // Formularfeld Funktionen
   const resetFieldForm = () => {
     setFieldForm({
       label: "",
@@ -117,26 +166,40 @@ function EinstellungenPage(): React.ReactNode {
       optionsText: "",
       validationPattern: "",
     });
-    setEditId(null);
+    setEditingField(null);
+    setShowFieldForm(false);
   };
 
-  const handleFieldInputChange = (
-    field: keyof typeof fieldForm,
-    value: string | boolean
-  ) => {
-    setFieldForm((prev) => ({ ...prev, [field]: value }));
-    setFieldsSaved(false);
+  const openNewFieldForm = () => {
+    resetFieldForm();
+    setShowFieldForm(true);
   };
 
-  const handleAddOrUpdateField = () => {
+  const openEditFieldForm = (field: FormFieldDefinition) => {
+    setEditingField(field);
+    setFieldForm({
+      label: field.label,
+      key: field.key,
+      type: field.type,
+      required: field.required,
+      description: field.description ?? "",
+      placeholder: field.placeholder ?? "",
+      optionsText: (field.options || []).join(", "),
+      validationPattern: field.validationPattern ?? "",
+    });
+    setShowFieldForm(true);
+  };
+
+  const handleSaveField = () => {
     if (!fieldForm.label.trim() || !fieldForm.key.trim()) return;
+
     const options = fieldForm.optionsText
       .split(",")
       .map((o) => o.trim())
       .filter(Boolean);
 
     const newDef: FormFieldDefinition = {
-      id: editId ?? crypto.randomUUID?.() ?? `field-${Date.now()}`,
+      id: editingField?.id ?? crypto.randomUUID?.() ?? `field-${Date.now()}`,
       key: fieldForm.key.trim(),
       label: fieldForm.label.trim(),
       type: fieldForm.type,
@@ -148,38 +211,22 @@ function EinstellungenPage(): React.ReactNode {
     };
 
     setFormFields((prev) => {
-      if (editId) {
-        return prev.map((f) => (f.id === editId ? newDef : f));
+      if (editingField) {
+        return prev.map((f) => (f.id === editingField.id ? newDef : f));
       }
       return [...prev, newDef];
     });
 
     resetFieldForm();
-  };
-
-  const handleEditField = (field: FormFieldDefinition) => {
-    setEditId(field.id);
-    setFieldForm({
-      label: field.label,
-      key: field.key,
-      type: field.type,
-      required: field.required,
-      description: field.description ?? "",
-      placeholder: field.placeholder ?? "",
-      optionsText: (field.options || []).join(", "),
-      validationPattern: field.validationPattern ?? "",
-    });
-  };
-
-  const handleRemoveField = (id: string) => {
-    setFormFields((prev) => prev.filter((f) => f.id !== id));
-    if (editId === id) {
-      resetFieldForm();
-    }
     setFieldsSaved(false);
   };
 
-  const handleSaveFieldDefinitions = async () => {
+  const handleDeleteField = (id: string) => {
+    setFormFields((prev) => prev.filter((f) => f.id !== id));
+    setFieldsSaved(false);
+  };
+
+  const handleSaveAllFields = async () => {
     setFieldsSaving(true);
     const success = await saveFormFieldDefinitions(formFields);
     setFieldsSaving(false);
@@ -189,349 +236,592 @@ function EinstellungenPage(): React.ReactNode {
     }
   };
 
-  return (
-    <div id="einstellungen-page" className="page-container">
-      <h1>Einstellungen</h1>
+  // Prozess-Konfiguration Funktionen
+  const selectProcess = (proc: Process) => {
+    setSelectedProcess(proc);
+    const config = proc.form_configuration as ProcessFormConfiguration | undefined;
+    setProcessFields(config?.fields || []);
+    setProcessSaved(false);
+  };
 
-      <div className="tabs">
-        <button
-          className={`tab-button ${
-            activeTab === "standardfilter" ? "active" : ""
-          }`}
-          onClick={() => setActiveTab("standardfilter")}
-        >
-          Standardfilter
-        </button>
-        <button
-          className={`tab-button ${activeTab === "prozesse" ? "active" : ""}`}
-          onClick={() => setActiveTab("prozesse")}
-        >
-          Prozesse
-        </button>
-        <button
-          className={`tab-button ${
-            activeTab === "formfelder" ? "active" : ""
-          }`}
-          onClick={() => setActiveTab("formfelder")}
-        >
-          Formularfelder
-        </button>
-        <button
-          className={`tab-button ${activeTab === "benutzer" ? "active" : ""}`}
-          onClick={() => setActiveTab("benutzer")}
-        >
-          Benutzer
-        </button>
-        <button
-          className={`tab-button ${activeTab === "rollen" ? "active" : ""}`}
-          onClick={() => setActiveTab("rollen")}
-        >
-          Rollen
-        </button>
+  const addFieldToProcess = (fieldId: string) => {
+    const field = formFields.find((f) => f.id === fieldId);
+    if (!field) return;
+    if (processFields.some((f) => f.id === fieldId)) return;
+    setProcessFields((prev) => [...prev, field]);
+    setProcessSaved(false);
+  };
+
+  const removeFieldFromProcess = (fieldId: string) => {
+    setProcessFields((prev) => prev.filter((f) => f.id !== fieldId));
+    setProcessSaved(false);
+  };
+
+  const moveFieldUp = (index: number) => {
+    if (index === 0) return;
+    setProcessFields((prev) => {
+      const next = [...prev];
+      [next[index - 1], next[index]] = [next[index], next[index - 1]];
+      return next;
+    });
+    setProcessSaved(false);
+  };
+
+  const moveFieldDown = (index: number) => {
+    if (index === processFields.length - 1) return;
+    setProcessFields((prev) => {
+      const next = [...prev];
+      [next[index], next[index + 1]] = [next[index + 1], next[index]];
+      return next;
+    });
+    setProcessSaved(false);
+  };
+
+  const handleSaveProcessConfig = async () => {
+    if (!selectedProcess?.process_id) return;
+    setProcessSaving(true);
+    try {
+      const config: ProcessFormConfiguration = {
+        fields: processFields,
+        values: (selectedProcess.form_configuration as ProcessFormConfiguration)?.values || {},
+      };
+      await saveProcessFormConfiguration(selectedProcess.process_id, config);
+      setProcessSaved(true);
+      setTimeout(() => setProcessSaved(false), 3000);
+      // Update local state
+      setProcesses((prev) =>
+        prev.map((p) =>
+          p.process_id === selectedProcess.process_id
+            ? { ...p, form_configuration: config }
+            : p
+        )
+      );
+      setSelectedProcess((prev) => (prev ? { ...prev, form_configuration: config } : null));
+    } catch (e) {
+      console.error(e);
+    }
+    setProcessSaving(false);
+  };
+
+  const availableFieldsForProcess = formFields.filter(
+    (f) => !processFields.some((pf) => pf.id === f.id)
+  );
+
+  const tabs = [
+    { id: "formfelder" as Tab, label: "Formularfelder", icon: FileText },
+    { id: "prozesse" as Tab, label: "Workflow-Felder", icon: Layers },
+    { id: "standardfilter" as Tab, label: "Standardfilter", icon: Settings2 },
+    { id: "benutzer" as Tab, label: "Benutzer", icon: Users },
+    { id: "rollen" as Tab, label: "Rollen", icon: Shield },
+  ];
+
+  return (
+    <div className="settings-page">
+      <div className="settings-sidebar">
+        <h2>Einstellungen</h2>
+        <nav className="settings-nav">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              className={`settings-nav-item ${activeTab === tab.id ? "active" : ""}`}
+              onClick={() => setActiveTab(tab.id)}
+            >
+              <tab.icon size={18} />
+              <span>{tab.label}</span>
+              <ChevronRight size={16} className="chevron" />
+            </button>
+          ))}
+        </nav>
       </div>
 
-      <div className="tab-content">
-        {activeTab === "standardfilter" && (
-          <div className="content-section">
-            <h2>Standardfilter für Workflows</h2>
-            <p className="section-description">
-              Wähle die Filter aus, die beim Öffnen der Workflow-Seite
-              automatisch aktiv sein sollen.
-            </p>
+      <div className="settings-content">
+        {/* FORMULARFELDER TAB */}
+        {activeTab === "formfelder" && (
+          <div className="settings-panel">
+            <div className="panel-header">
+              <div>
+                <h1>Formularfelder</h1>
+                <p>Erstelle und verwalte wiederverwendbare Formularfelder für deine Workflows.</p>
+              </div>
+              <div className="panel-actions">
+                {fieldsSaved && (
+                  <span className="status-badge success">
+                    <Check size={14} /> Gespeichert
+                  </span>
+                )}
+                <button
+                  className="btn btn-secondary"
+                  onClick={handleSaveAllFields}
+                  disabled={fieldsSaving}
+                >
+                  {fieldsSaving ? <Loader2 className="spin" size={16} /> : <Save size={16} />}
+                  Alle speichern
+                </button>
+                <button className="btn btn-primary" onClick={openNewFieldForm}>
+                  <Plus size={16} />
+                  Neues Feld
+                </button>
+              </div>
+            </div>
 
-            {loading ? (
-              <div className="loading-state">
-                <Loader2 className="spin" size={20} />
-                <span>Lade Einstellungen...</span>
+            {fieldsLoading ? (
+              <div className="loading-container">
+                <Loader2 className="spin" size={24} />
+                <span>Lade Felder...</span>
               </div>
             ) : (
-              <>
-                <div className="filter-settings-group">
-                  <h3>Status</h3>
-                  <div className="checkbox-group">
-                    {statusOptions.map((option) => (
-                      <label key={option.value} className="checkbox-label">
-                        <input
-                          type="checkbox"
-                          checked={defaultFilters.statuses.includes(
-                            option.value
-                          )}
-                          onChange={() => toggleStatus(option.value)}
-                        />
-                        <span
-                          className={`status-indicator ${option.value}`}
-                        ></span>
-                        {option.label}
-                      </label>
-                    ))}
+              <div className="fields-table-container">
+                {formFields.length === 0 ? (
+                  <div className="empty-state">
+                    <FileText size={48} />
+                    <h3>Keine Felder vorhanden</h3>
+                    <p>Erstelle dein erstes Formularfeld, um es in Workflows zu verwenden.</p>
+                    <button className="btn btn-primary" onClick={openNewFieldForm}>
+                      <Plus size={16} /> Erstes Feld erstellen
+                    </button>
                   </div>
-                </div>
+                ) : (
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Label</th>
+                        <th>Schlüssel</th>
+                        <th>Typ</th>
+                        <th>Pflicht</th>
+                        <th>Richtlinie</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {formFields.map((field) => (
+                        <tr key={field.id}>
+                          <td className="cell-main">
+                            <span className="field-name">{field.label}</span>
+                            {field.description && (
+                              <span className="field-desc">{field.description}</span>
+                            )}
+                          </td>
+                          <td>
+                            <code className="field-key">{field.key}</code>
+                          </td>
+                          <td>
+                            <span className="type-badge">{field.type}</span>
+                          </td>
+                          <td>
+                            {field.required ? (
+                              <span className="badge badge-required">Ja</span>
+                            ) : (
+                              <span className="badge badge-optional">Nein</span>
+                            )}
+                          </td>
+                          <td>
+                            {field.validationPattern ? (
+                              <span className="badge badge-rule">Aktiv</span>
+                            ) : (
+                              <span className="text-muted">—</span>
+                            )}
+                          </td>
+                          <td className="cell-actions">
+                            <button
+                              className="icon-btn"
+                              onClick={() => openEditFieldForm(field)}
+                              title="Bearbeiten"
+                            >
+                              <Pencil size={16} />
+                            </button>
+                            <button
+                              className="icon-btn danger"
+                              onClick={() => handleDeleteField(field.id)}
+                              title="Löschen"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            )}
 
-                <div className="filter-settings-group">
-                  <h3>Kategorien</h3>
-                  <div className="checkbox-group">
-                    {categoryOptions.map((category) => (
-                      <label key={category} className="checkbox-label">
-                        <input
-                          type="checkbox"
-                          checked={defaultFilters.categories.includes(category)}
-                          onChange={() => toggleCategory(category)}
-                        />
-                        {category}
-                      </label>
-                    ))}
+            {/* Feld-Formular Modal */}
+            {showFieldForm && (
+              <div className="modal-overlay" onClick={() => setShowFieldForm(false)}>
+                <div className="modal" onClick={(e) => e.stopPropagation()}>
+                  <div className="modal-header">
+                    <h2>{editingField ? "Feld bearbeiten" : "Neues Feld erstellen"}</h2>
                   </div>
-                </div>
-
-                <div className="save-section">
-                  <button
-                    className={`save-button ${saved ? "saved" : ""}`}
-                    onClick={handleSaveFilters}
-                    disabled={saving}
-                  >
-                    {saving ? (
-                      <>
-                        <Loader2 className="spin" size={16} />
-                        Speichern...
-                      </>
-                    ) : saved ? (
-                      <>
-                        <Check size={16} />
-                        Gespeichert!
-                      </>
-                    ) : (
-                      <>
-                        <Save size={16} />
-                        Einstellungen speichern
-                      </>
+                  <div className="modal-body">
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>Label *</label>
+                        <input
+                          type="text"
+                          value={fieldForm.label}
+                          onChange={(e) => setFieldForm({ ...fieldForm, label: e.target.value })}
+                          placeholder="z.B. E-Mail-Adresse"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Schlüssel (key) *</label>
+                        <input
+                          type="text"
+                          value={fieldForm.key}
+                          onChange={(e) => setFieldForm({ ...fieldForm, key: e.target.value })}
+                          placeholder="z.B. email"
+                        />
+                      </div>
+                    </div>
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>Feldtyp</label>
+                        <select
+                          value={fieldForm.type}
+                          onChange={(e) =>
+                            setFieldForm({ ...fieldForm, type: e.target.value as FormFieldType })
+                          }
+                        >
+                          {fieldTypes.map((t) => (
+                            <option key={t.value} value={t.value}>
+                              {t.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="form-group checkbox-inline">
+                        <label className="checkbox-label">
+                          <input
+                            type="checkbox"
+                            checked={fieldForm.required}
+                            onChange={(e) =>
+                              setFieldForm({ ...fieldForm, required: e.target.checked })
+                            }
+                          />
+                          <span>Pflichtfeld</span>
+                        </label>
+                      </div>
+                    </div>
+                    <div className="form-group">
+                      <label>Placeholder</label>
+                      <input
+                        type="text"
+                        value={fieldForm.placeholder}
+                        onChange={(e) => setFieldForm({ ...fieldForm, placeholder: e.target.value })}
+                        placeholder="z.B. Gib deine E-Mail ein..."
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Beschreibung / Hilfetext</label>
+                      <textarea
+                        value={fieldForm.description}
+                        onChange={(e) => setFieldForm({ ...fieldForm, description: e.target.value })}
+                        rows={2}
+                        placeholder="Optionale Beschreibung für das Feld"
+                      />
+                    </div>
+                    {fieldForm.type === "select" && (
+                      <div className="form-group">
+                        <label>Optionen (Komma-getrennt)</label>
+                        <input
+                          type="text"
+                          value={fieldForm.optionsText}
+                          onChange={(e) =>
+                            setFieldForm({ ...fieldForm, optionsText: e.target.value })
+                          }
+                          placeholder="z.B. Option A, Option B, Option C"
+                        />
+                      </div>
                     )}
-                  </button>
+                    <div className="form-group">
+                      <label>Validierungs-Richtlinie (Regex)</label>
+                      <input
+                        type="text"
+                        value={fieldForm.validationPattern}
+                        onChange={(e) =>
+                          setFieldForm({ ...fieldForm, validationPattern: e.target.value })
+                        }
+                        placeholder="z.B. ^[a-zA-Z0-9]+$ oder ^.{8,}$"
+                      />
+                      <span className="form-hint">
+                        Regulärer Ausdruck zur Validierung der Eingabe
+                      </span>
+                    </div>
+                  </div>
+                  <div className="modal-footer">
+                    <button className="btn btn-ghost" onClick={resetFieldForm}>
+                      Abbrechen
+                    </button>
+                    <button
+                      className="btn btn-primary"
+                      onClick={handleSaveField}
+                      disabled={!fieldForm.label.trim() || !fieldForm.key.trim()}
+                    >
+                      {editingField ? "Änderungen speichern" : "Feld erstellen"}
+                    </button>
+                  </div>
                 </div>
-              </>
+              </div>
             )}
           </div>
         )}
 
+        {/* PROZESSE / WORKFLOW-FELDER TAB */}
         {activeTab === "prozesse" && (
-          <div className="content-section">
-            <h2>Prozessverwaltung</h2>
-            <p>Prozesse können hier verwaltet werden.</p>
-          </div>
-        )}
-
-        {activeTab === "benutzer" && (
-          <div className="content-section">
-            <h2>Benutzerverwaltung</h2>
-            <p>Benutzer können hier verwaltet werden.</p>
-          </div>
-        )}
-
-        {activeTab === "rollen" && (
-          <div className="content-section">
-            <h2>Rollenverwaltung</h2>
-            <p>Rollen können hier verwaltet werden.</p>
-          </div>
-        )}
-
-        {activeTab === "formfelder" && (
-          <div className="content-section formfields-section">
-            <div className="formfields-header">
+          <div className="settings-panel">
+            <div className="panel-header">
               <div>
-                <h2>Formularfelder (Baukasten)</h2>
-                <p className="section-description">
-                  Lege Felder an, die später Workflows zugeordnet und als JSON
-                  gespeichert werden. Richtlinien kannst du als Regex
-                  (validationPattern) hinterlegen.
-                </p>
-              </div>
-              <div className="inline-status">
-                {fieldsSaving && (
-                  <span className="badge saving">
-                    <Loader2 className="spin" size={14} /> Speichern...
-                  </span>
-                )}
-                {fieldsSaved && !fieldsSaving && (
-                  <span className="badge success">
-                    <Check size={14} /> Gespeichert
-                  </span>
-                )}
+                <h1>Workflow-Felder konfigurieren</h1>
+                <p>Wähle einen Workflow und weise ihm Formularfelder zu.</p>
               </div>
             </div>
 
-            <div className="formfields-grid">
-              <div className="builder-card">
-                <h3>{editId ? "Feld bearbeiten" : "Neues Feld"}</h3>
-                <div className="form-grid">
-                  <label className="form-control">
-                    <span>Label</span>
-                    <input
-                      type="text"
-                      value={fieldForm.label}
-                      onChange={(e) => handleFieldInputChange("label", e.target.value)}
-                      placeholder="z.B. Passwort"
-                    />
-                  </label>
-                  <label className="form-control">
-                    <span>Schlüssel (key)</span>
-                    <input
-                      type="text"
-                      value={fieldForm.key}
-                      onChange={(e) => handleFieldInputChange("key", e.target.value)}
-                      placeholder="z.B. password"
-                    />
-                  </label>
-                  <label className="form-control">
-                    <span>Typ</span>
-                    <select
-                      value={fieldForm.type}
-                      onChange={(e) =>
-                        handleFieldInputChange("type", e.target.value as FormFieldType)
-                      }
-                    >
-                      <option value="text">Text</option>
-                      <option value="email">Email</option>
-                      <option value="password">Passwort</option>
-                      <option value="number">Zahl</option>
-                      <option value="textarea">Textarea</option>
-                      <option value="select">Select</option>
-                      <option value="checkbox">Checkbox</option>
-                    </select>
-                  </label>
-                  <label className="form-control checkbox-row">
-                    <input
-                      type="checkbox"
-                      checked={fieldForm.required}
-                      onChange={(e) => handleFieldInputChange("required", e.target.checked)}
-                    />
-                    <span>Pflichtfeld</span>
-                  </label>
-                  <label className="form-control full">
-                    <span>Placeholder</span>
-                    <input
-                      type="text"
-                      value={fieldForm.placeholder}
-                      onChange={(e) =>
-                        handleFieldInputChange("placeholder", e.target.value)
-                      }
-                      placeholder="z.B. Gib dein Passwort ein"
-                    />
-                  </label>
-                  <label className="form-control full">
-                    <span>Beschreibung</span>
-                    <textarea
-                      value={fieldForm.description}
-                      onChange={(e) =>
-                        handleFieldInputChange("description", e.target.value)
-                      }
-                      rows={2}
-                      placeholder="Kurzbeschreibung oder Hilfetext"
-                    />
-                  </label>
-                  <label className="form-control full">
-                    <span>Optionen (Komma-getrennt, nur für Select)</span>
-                    <input
-                      type="text"
-                      value={fieldForm.optionsText}
-                      onChange={(e) =>
-                        handleFieldInputChange("optionsText", e.target.value)
-                      }
-                      placeholder="z.B. Option A, Option B, Option C"
-                    />
-                  </label>
-                  <label className="form-control full">
-                    <span>Richtlinie (Regex)</span>
-                    <input
-                      type="text"
-                      value={fieldForm.validationPattern}
-                      onChange={(e) =>
-                        handleFieldInputChange("validationPattern", e.target.value)
-                      }
-                      placeholder="z.B. ^(?=.*[A-Z])(?=.*[0-9]).{8,}$"
-                    />
-                  </label>
-                </div>
-
-                <div className="builder-actions">
-                  <button className="primary-btn" onClick={handleAddOrUpdateField}>
-                    <Plus size={16} /> {editId ? "Feld aktualisieren" : "Feld hinzufügen"}
-                  </button>
-                  {editId && (
-                    <button className="ghost-btn" onClick={resetFieldForm}>
-                      Abbrechen
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              <div className="builder-card list-card">
-                <div className="list-header">
-                  <h3>Verfügbare Felder</h3>
-                  <button
-                    className="secondary-btn"
-                    onClick={handleSaveFieldDefinitions}
-                    disabled={fieldsSaving}
-                  >
-                    {fieldsSaving ? <Loader2 className="spin" size={16} /> : <Save size={16} />}
-                    Änderungen speichern
-                  </button>
-                </div>
-
-                {fieldsLoading ? (
-                  <div className="loading-state">
+            <div className="process-config-layout">
+              {/* Prozess-Liste */}
+              <div className="process-list-panel">
+                <h3>Workflows</h3>
+                {processesLoading ? (
+                  <div className="loading-container small">
                     <Loader2 className="spin" size={20} />
-                    <span>Lade Felder...</span>
                   </div>
-                ) : formFields.length === 0 ? (
-                  <div className="placeholder-card">
-                    <p>Noch keine Felder angelegt.</p>
-                    <span>Erstelle ein Feld im linken Formular.</span>
-                  </div>
+                ) : processes.length === 0 ? (
+                  <p className="text-muted">Keine Workflows gefunden.</p>
                 ) : (
-                  <div className="field-list">
-                    {formFields.map((field) => (
-                      <div key={field.id} className="field-row">
-                        <div className="field-row-main">
-                          <div className="field-row-title">
-                            <span className="field-label">{field.label}</span>
-                            <span className="field-key">{field.key}</span>
-                          </div>
-                          <div className="field-row-meta">
-                            <span className="pill type">{field.type}</span>
-                            {field.required && <span className="pill required">Pflicht</span>}
-                            {field.validationPattern && (
-                              <span className="pill rule">Richtlinie</span>
-                            )}
-                          </div>
-                          {field.description && (
-                            <p className="field-row-description">{field.description}</p>
-                          )}
-                          {field.options && field.options.length > 0 && (
-                            <p className="field-row-options">
-                              Optionen: {field.options.join(", ")}
-                            </p>
-                          )}
-                        </div>
-                        <div className="field-row-actions">
-                          <button
-                            className="ghost-btn"
-                            onClick={() => handleEditField(field)}
-                            title="Bearbeiten"
-                          >
-                            <Pencil size={16} />
-                          </button>
-                          <button
-                            className="ghost-btn danger"
-                            onClick={() => handleRemoveField(field.id)}
-                            title="Löschen"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </div>
+                  <div className="process-list">
+                    {processes.map((proc) => (
+                      <button
+                        key={proc.id}
+                        className={`process-item ${selectedProcess?.id === proc.id ? "active" : ""}`}
+                        onClick={() => selectProcess(proc)}
+                      >
+                        <span className="process-name">{proc.name}</span>
+                        <span className={`status-dot status-${proc.status}`}></span>
+                      </button>
                     ))}
                   </div>
                 )}
               </div>
+
+              {/* Feld-Konfiguration */}
+              <div className="field-config-panel">
+                {!selectedProcess ? (
+                  <div className="empty-state small">
+                    <Layers size={32} />
+                    <p>Wähle einen Workflow aus der Liste</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="config-header">
+                      <h3>{selectedProcess.name}</h3>
+                      <div className="config-actions">
+                        {processSaved && (
+                          <span className="status-badge success">
+                            <Check size={14} /> Gespeichert
+                          </span>
+                        )}
+                        <button
+                          className="btn btn-primary"
+                          onClick={handleSaveProcessConfig}
+                          disabled={processSaving}
+                        >
+                          {processSaving ? (
+                            <Loader2 className="spin" size={16} />
+                          ) : (
+                            <Save size={16} />
+                          )}
+                          Konfiguration speichern
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Feld hinzufügen */}
+                    <div className="add-field-section">
+                      <label>Feld hinzufügen:</label>
+                      <div className="add-field-row">
+                        <select
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              addFieldToProcess(e.target.value);
+                              e.target.value = "";
+                            }
+                          }}
+                          defaultValue=""
+                        >
+                          <option value="">Feld auswählen...</option>
+                          {availableFieldsForProcess.map((f) => (
+                            <option key={f.id} value={f.id}>
+                              {f.label} ({f.type})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      {availableFieldsForProcess.length === 0 && formFields.length > 0 && (
+                        <span className="form-hint">Alle Felder wurden bereits hinzugefügt.</span>
+                      )}
+                      {formFields.length === 0 && (
+                        <span className="form-hint">
+                          Erstelle zuerst Formularfelder im Tab "Formularfelder".
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Zugewiesene Felder */}
+                    <div className="assigned-fields">
+                      <h4>Zugewiesene Felder ({processFields.length})</h4>
+                      {processFields.length === 0 ? (
+                        <p className="text-muted">Noch keine Felder zugewiesen.</p>
+                      ) : (
+                        <div className="field-order-list">
+                          {processFields.map((field, idx) => (
+                            <div key={field.id} className="field-order-item">
+                              <div className="field-order-info">
+                                <span className="order-num">{idx + 1}</span>
+                                <div>
+                                  <span className="field-label">{field.label}</span>
+                                  <span className="field-meta">
+                                    {field.type}
+                                    {field.required && " • Pflicht"}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="field-order-actions">
+                                <button
+                                  className="icon-btn small"
+                                  onClick={() => moveFieldUp(idx)}
+                                  disabled={idx === 0}
+                                  title="Nach oben"
+                                >
+                                  ▲
+                                </button>
+                                <button
+                                  className="icon-btn small"
+                                  onClick={() => moveFieldDown(idx)}
+                                  disabled={idx === processFields.length - 1}
+                                  title="Nach unten"
+                                >
+                                  ▼
+                                </button>
+                                <button
+                                  className="icon-btn small danger"
+                                  onClick={() => removeFieldFromProcess(field.id)}
+                                  title="Entfernen"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* STANDARDFILTER TAB */}
+        {activeTab === "standardfilter" && (
+          <div className="settings-panel">
+            <div className="panel-header">
+              <div>
+                <h1>Standardfilter</h1>
+                <p>Lege fest, welche Filter beim Öffnen der Workflow-Übersicht aktiv sind.</p>
+              </div>
+              <div className="panel-actions">
+                {filterSaved && (
+                  <span className="status-badge success">
+                    <Check size={14} /> Gespeichert
+                  </span>
+                )}
+                <button
+                  className="btn btn-primary"
+                  onClick={handleSaveFilters}
+                  disabled={filterSaving}
+                >
+                  {filterSaving ? <Loader2 className="spin" size={16} /> : <Save size={16} />}
+                  Speichern
+                </button>
+              </div>
+            </div>
+
+            {filterLoading ? (
+              <div className="loading-container">
+                <Loader2 className="spin" size={24} />
+              </div>
+            ) : (
+              <div className="filter-config">
+                <div className="filter-section">
+                  <h3>Status</h3>
+                  <div className="filter-options">
+                    {statusOptions.map((opt) => (
+                      <label key={opt.value} className="filter-option">
+                        <input
+                          type="checkbox"
+                          checked={defaultFilters.statuses.includes(opt.value)}
+                          onChange={() => toggleStatus(opt.value)}
+                        />
+                        <span
+                          className="status-indicator"
+                          style={{ backgroundColor: opt.color }}
+                        ></span>
+                        <span>{opt.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="filter-section">
+                  <h3>Kategorien</h3>
+                  <div className="filter-options">
+                    {categoryOptions.map((cat) => (
+                      <label key={cat} className="filter-option">
+                        <input
+                          type="checkbox"
+                          checked={defaultFilters.categories.includes(cat)}
+                          onChange={() => toggleCategory(cat)}
+                        />
+                        <span>{cat}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* BENUTZER TAB */}
+        {activeTab === "benutzer" && (
+          <div className="settings-panel">
+            <div className="panel-header">
+              <div>
+                <h1>Benutzerverwaltung</h1>
+                <p>Verwalte Benutzer und deren Zugriffsrechte.</p>
+              </div>
+            </div>
+            <div className="empty-state">
+              <Users size={48} />
+              <h3>Kommt bald</h3>
+              <p>Die Benutzerverwaltung wird in einer zukünftigen Version verfügbar sein.</p>
+            </div>
+          </div>
+        )}
+
+        {/* ROLLEN TAB */}
+        {activeTab === "rollen" && (
+          <div className="settings-panel">
+            <div className="panel-header">
+              <div>
+                <h1>Rollenverwaltung</h1>
+                <p>Definiere Rollen und Berechtigungen.</p>
+              </div>
+            </div>
+            <div className="empty-state">
+              <Shield size={48} />
+              <h3>Kommt bald</h3>
+              <p>Die Rollenverwaltung wird in einer zukünftigen Version verfügbar sein.</p>
             </div>
           </div>
         )}

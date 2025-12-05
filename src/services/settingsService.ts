@@ -137,7 +137,10 @@ async function upsertSetting<T>(
     .eq("id", existing.id);
 
   if (error) {
-    console.error(`❌ Fehler beim Aktualisieren der Einstellung '${key}':`, error);
+    console.error(
+      `❌ Fehler beim Aktualisieren der Einstellung '${key}':`,
+      error
+    );
     return false;
   }
 
@@ -167,7 +170,9 @@ export async function saveDefaultWorkflowFilters(
 /**
  * Formularfeld-Definitionen laden
  */
-export async function getFormFieldDefinitions(): Promise<FormFieldDefinition[]> {
+export async function getFormFieldDefinitions(): Promise<
+  FormFieldDefinition[]
+> {
   const definitions = await getSetting<FormFieldDefinition[]>(
     FORM_FIELD_SETTING_KEY
   );
@@ -180,5 +185,9 @@ export async function getFormFieldDefinitions(): Promise<FormFieldDefinition[]> 
 export async function saveFormFieldDefinitions(
   definitions: FormFieldDefinition[]
 ): Promise<boolean> {
-  return upsertSetting(FORM_FIELD_SETTING_KEY, definitions, "Form Builder Felder");
+  return upsertSetting(
+    FORM_FIELD_SETTING_KEY,
+    definitions,
+    "Form Builder Felder"
+  );
 }

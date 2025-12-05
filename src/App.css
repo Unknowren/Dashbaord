@@ -2,8 +2,10 @@
   --dark-bg: #0d0f12;
   --dark-secondary: #1a1d23;
   --dark-tertiary: #25272d;
-  --accent: #10a37f;
-  --accent-hover: #0e8f6c;
+  --accent: #2d6ca2;
+  --accent-hover: #245a87;
+  --accent-secondary: #e5a823;
+  --accent-secondary-hover: #cc9520;
   --text-primary: #ececf1;
   --text-secondary: #c5c5d2;
   --border: #4d4d4d;
@@ -20,7 +22,8 @@
   height: 100vh;
   background: var(--dark-bg);
   color: var(--text-primary);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
 }
 
 .container {
@@ -53,11 +56,20 @@
   gap: 0.5rem;
 }
 
+.sidebar.closed .sidebar-header {
+  justify-content: center;
+  padding: 1rem 0.5rem;
+}
+
+.sidebar.closed .logo {
+  display: none;
+}
+
 .logo {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  color: var(--accent);
+  color: var(--accent-secondary);
   font-weight: 600;
   font-size: 0.95rem;
   flex: 1;
@@ -100,6 +112,17 @@
   flex: 1;
 }
 
+.sidebar.closed .sidebar-nav {
+  align-items: center;
+}
+
+.sidebar.closed .nav-btn {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  justify-content: center;
+}
+
 .nav-btn {
   display: flex;
   align-items: center;
@@ -127,11 +150,13 @@
   background: var(--accent);
   color: #ffffff;
   border-color: var(--accent);
+  border-left: 3px solid var(--accent-secondary);
 }
 
 .nav-btn.active:hover {
   background: var(--accent-hover);
   border-color: var(--accent-hover);
+  border-left: 3px solid var(--accent-secondary);
 }
 
 .nav-btn span {

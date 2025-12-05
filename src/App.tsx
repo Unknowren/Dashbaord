@@ -3,6 +3,8 @@ import { Menu, Settings, MessageSquare, Zap, Search } from "lucide-react";
 import "./App.css";
 import WorkflowsPage from "./components/WorkflowsPage";
 import "./components/WorkflowsPage.css";
+import EinstellungenPage from "./components/Pages/EinstellungenPage";
+import "./components/Pages/EinstellungenPage.css";
 
 function App() {
   const [page, setPage] = useState("workflows");
@@ -57,12 +59,7 @@ function App() {
       </div>
     );
   } else if (page === "einstellungen") {
-    content = (
-      <div>
-        <h2>Einstellungen</h2>
-        <p>Konfiguration und Verwaltung</p>
-      </div>
-    );
+    content = <EinstellungenPage />;
   } else {
     content = <WorkflowsPage searchQuery={searchQuery} />;
   }

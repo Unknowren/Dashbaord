@@ -32,6 +32,12 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: false,
   },
+  global: {
+    headers: {
+      "Content-Profile": "brainstudio",
+      "Accept-Profile": "brainstudio",
+    },
+  },
 });
 
 export { supabase };

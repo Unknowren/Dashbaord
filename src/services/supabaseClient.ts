@@ -10,9 +10,9 @@
 
 import { createClient } from "@supabase/supabase-js";
 
-// Fallback-Werte für lokale Entwicklung (Supabase Demo Keys)
+// Fallback-Werte für lokale Entwicklung
 const DEFAULT_URL = "http://localhost:8000";
-const DEFAULT_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0";
+const DEFAULT_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzMzMzU2ODAwLCJleHAiOjE4OTExMjMyMDB9.1oGZGdGXbZKoGD9bCEleJSL75v_J-bPnkzjM490vcTk";
 
 // Umgebungsvariablen laden mit Fallback
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || DEFAULT_URL;

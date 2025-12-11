@@ -291,6 +291,163 @@ services:
       timeout: 5s
       retries: 3
 
+  # ------------------------------------------
+  # ZAMMAD - Helpdesk & Ticketsystem
+  # ------------------------------------------
+  zammad-elasticsearch:
+    image: elasticsearch:8.12.2
+    container_name: brainstudio-zammad-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - xpack.security.enabled=false
+    volumes:
+      - ${ZAMMAD_ELASTICSEARCH_PATH:-./docker-data/zammad-elasticsearch}:/usr/share/elasticsearch/data
+    networks:
+      - brainstudio-network
+    restart: unless-stopped
+
+  zammad-memcached:
+    image: memcached:1.6-alpine
+    container_name: brainstudio-zammad-memcached
+    command: memcached -m 256M
+    networks:
+      - brainstudio-network
+    restart: unless-stopped
+
+  zammad-redis:
+    image: redis:7-alpine
+    container_name: brainstudio-zammad-redis
+    volumes:
+      - ${ZAMMAD_REDIS_PATH:-./docker-data/zammad-redis}:/data
+    networks:
+      - brainstudio-network
+    restart: unless-stopped
+
+  zammad-postgresql:
+    image: postgres:15-alpine
+    container_name: brainstudio-zammad-postgresql
+    environment:
+      POSTGRES_USER: ${ZAMMAD_DB_USER:-zammad}
+      POSTGRES_PASSWORD: ${ZAMMAD_DB_PASSWORD}
+      POSTGRES_DB: ${ZAMMAD_DB_NAME:-zammad_production}
+    volumes:
+      - ${ZAMMAD_POSTGRES_PATH:-./docker-data/zammad-postgres}:/var/lib/postgresql/data
+    networks:
+      - brainstudio-network
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${ZAMMAD_DB_USER:-zammad} -d ${ZAMMAD_DB_NAME:-zammad_production}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  zammad-init:
+    image: ${ZAMMAD_IMAGE:-zammad/zammad-docker-compose:latest}
+    container_name: brainstudio-zammad-init
+    command: ["zammad-init"]
+    depends_on:
+      zammad-postgresql:
+        condition: service_healthy
+    volumes:
+      - zammad-data:/opt/zammad
+    environment:
+      MEMCACHE_SERVERS: zammad-memcached:11211
+      POSTGRESQL_HOST: zammad-postgresql
+      POSTGRESQL_USER: ${ZAMMAD_DB_USER:-zammad}
+      POSTGRESQL_PASS: ${ZAMMAD_DB_PASSWORD}
+      POSTGRESQL_DB: ${ZAMMAD_DB_NAME:-zammad_production}
+      REDIS_URL: redis://zammad-redis:6379
+    networks:
+      - brainstudio-network
+    restart: on-failure
+
+  zammad-railsserver:
+    image: ${ZAMMAD_IMAGE:-zammad/zammad-docker-compose:latest}
+    container_name: brainstudio-zammad-railsserver
+    command: ["zammad-railsserver"]
+    depends_on:
+      - zammad-init
+      - zammad-memcached
+      - zammad-redis
+    volumes:
+      - zammad-data:/opt/zammad
+    environment:
+      MEMCACHE_SERVERS: zammad-memcached:11211
+      POSTGRESQL_HOST: zammad-postgresql
+      POSTGRESQL_USER: ${ZAMMAD_DB_USER:-zammad}
+      POSTGRESQL_PASS: ${ZAMMAD_DB_PASSWORD}
+      POSTGRESQL_DB: ${ZAMMAD_DB_NAME:-zammad_production}
+      REDIS_URL: redis://zammad-redis:6379
+    networks:
+      - brainstudio-network
+    restart: unless-stopped
+
+  zammad-scheduler:
+    image: ${ZAMMAD_IMAGE:-zammad/zammad-docker-compose:latest}
+    container_name: brainstudio-zammad-scheduler
+    command: ["zammad-scheduler"]
+    depends_on:
+      - zammad-railsserver
+    volumes:
+      - zammad-data:/opt/zammad
+    environment:
+      MEMCACHE_SERVERS: zammad-memcached:11211
+      POSTGRESQL_HOST: zammad-postgresql
+      POSTGRESQL_USER: ${ZAMMAD_DB_USER:-zammad}
+      POSTGRESQL_PASS: ${ZAMMAD_DB_PASSWORD}
+      POSTGRESQL_DB: ${ZAMMAD_DB_NAME:-zammad_production}
+      REDIS_URL: redis://zammad-redis:6379
+    networks:
+      - brainstudio-network
+    restart: unless-stopped
+
+  zammad-websocket:
+    image: ${ZAMMAD_IMAGE:-zammad/zammad-docker-compose:latest}
+    container_name: brainstudio-zammad-websocket
+    command: ["zammad-websocket"]
+    depends_on:
+      - zammad-railsserver
+    volumes:
+      - zammad-data:/opt/zammad
+    environment:
+      MEMCACHE_SERVERS: zammad-memcached:11211
+      POSTGRESQL_HOST: zammad-postgresql
+      POSTGRESQL_USER: ${ZAMMAD_DB_USER:-zammad}
+      POSTGRESQL_PASS: ${ZAMMAD_DB_PASSWORD}
+      POSTGRESQL_DB: ${ZAMMAD_DB_NAME:-zammad_production}
+      REDIS_URL: redis://zammad-redis:6379
+    networks:
+      - brainstudio-network
+    restart: unless-stopped
+
+  zammad-nginx:
+    image: ${ZAMMAD_IMAGE:-zammad/zammad-docker-compose:latest}
+    container_name: brainstudio-zammad-nginx
+    command: ["zammad-nginx"]
+    ports:
+      - "${ZAMMAD_PORT:-8080}:8080"
+    depends_on:
+      - zammad-railsserver
+      - zammad-websocket
+    volumes:
+      - zammad-data:/opt/zammad
+    environment:
+      NGINX_SERVER_SCHEME: ${ZAMMAD_NGINX_SERVER_SCHEME:-http}
+      MEMCACHE_SERVERS: zammad-memcached:11211
+      POSTGRESQL_HOST: zammad-postgresql
+      POSTGRESQL_USER: ${ZAMMAD_DB_USER:-zammad}
+      POSTGRESQL_PASS: ${ZAMMAD_DB_PASSWORD}
+      POSTGRESQL_DB: ${ZAMMAD_DB_NAME:-zammad_production}
+      REDIS_URL: redis://zammad-redis:6379
+    networks:
+      - brainstudio-network
+    restart: unless-stopped
+
 # ------------------------------------------
 # NETZWERK
 # ------------------------------------------
@@ -298,3 +455,9 @@ networks:
   brainstudio-network:
     driver: bridge
     name: brainstudio-network
+
+# ------------------------------------------
+# VOLUMES (für Zammad)
+# ------------------------------------------
+volumes:
+  zammad-data:

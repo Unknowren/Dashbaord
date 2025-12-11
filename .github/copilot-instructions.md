@@ -2,7 +2,7 @@
 
 ## Projektübersicht
 BrainTestStudio ist ein React-basiertes Workflow-Dashboard mit deutscher Benutzeroberfläche.
-Das Projekt läuft in einer Docker-Umgebung mit N8N und Supabase.
+Das Projekt läuft in einer Docker-Umgebung mit N8N, Supabase und Zammad.
 
 ## Technologie-Stack
 - React 18 mit TypeScript
@@ -12,6 +12,7 @@ Das Projekt läuft in einer Docker-Umgebung mit N8N und Supabase.
 - Docker Compose für Deployment
 - N8N für Workflow-Automatisierung
 - Supabase (PostgreSQL) als Datenbank
+- Zammad für Helpdesk & Ticketing
 - Nginx als Webserver
 
 ## Docker Services
@@ -23,6 +24,7 @@ Das Projekt läuft in einer Docker-Umgebung mit N8N und Supabase.
 | Supabase Studio | 3001 | Datenbank Admin UI |
 | Supabase API | 8000 | REST API (Kong Gateway) |
 | PostgreSQL | 5432 | Datenbank |
+| Zammad | 8080 | Helpdesk & Ticketsystem |
 
 ## Bereichs-Referenzen
 

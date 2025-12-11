@@ -41,6 +41,7 @@ cp .env.example .env
 | Supabase Studio | http://localhost:3001 | Datenbank Admin |
 | Supabase API | http://localhost:8000 | REST API |
 | Ollama | http://localhost:11434 | Local LLM Engine |
+| Zammad | http://localhost:8080 | Helpdesk & Ticketsystem |
 
 ### Stoppen
 
@@ -91,6 +92,7 @@ npm run dev
 - [x] N8N Workflow Integration
 - [x] Supabase Datenbank
 - [x] Ollama Local LLM Integration
+- [x] Zammad Helpdesk Integration
 - [ ] Live-Formulare mit Echtzeit-Feedback
 - [ ] Workflow-Pipeline-Übersicht
 - [ ] Benutzerauthentifizierung
@@ -164,6 +166,72 @@ In N8N kannst du Ollama über einen **HTTP Request Node** nutzen:
 - **Kleine Modelle** (mistral, neural-chat): Schneller, weniger Speicher
 - **Große Modelle** (llama2 13b): Bessere Qualität, länger Rechenzeit
 - **GPU-Beschleunigung** auf macOS/Windows: Optional, Ollama nutzt CPU wenn kein GPU-Support
+
+## 🎫 Zammad Helpdesk Integration
+
+Zammad ist ein Open-Source-Helpdesk und Ticketsystem für Kundensupport und interne Anfragen.
+
+### Erster Start
+
+Beim ersten Start von Zammad dauert die Initialisierung einige Minuten. Zammad richtet automatisch die Datenbank ein und erstellt alle benötigten Tabellen.
+
+**Status prüfen:**
+```bash
+docker logs -f brainstudio-zammad-init
+```
+
+**Warten bis die Initialisierung abgeschlossen ist, dann:**
+```bash
+docker compose up -d zammad-nginx
+```
+
+### Zammad Setup-Wizard
+
+Nach dem ersten Start erreichst du den Setup-Wizard unter http://localhost:8080:
+
+1. **Administrator erstellen**: E-Mail und Passwort festlegen
+2. **Organisation konfigurieren**: Firmenname und Details eingeben
+3. **E-Mail-Kanäle einrichten**: SMTP/IMAP für E-Mail-Tickets (optional)
+
+### Zammad Container
+
+Zammad besteht aus mehreren Services:
+
+| Container | Funktion |
+|-----------|----------|
+| zammad-nginx | Webserver (Port 8080) |
+| zammad-railsserver | Rails Application Server |
+| zammad-websocket | WebSocket Server für Echtzeit-Updates |
+| zammad-scheduler | Hintergrund-Jobs |
+| zammad-postgresql | Zammad-Datenbank |
+| zammad-elasticsearch | Volltextsuche |
+| zammad-redis | Cache & Sessions |
+| zammad-memcached | Object Caching |
+
+### Integration mit N8N
+
+Du kannst Zammad mit N8N über die REST API integrieren:
+
+**API-Token erstellen:**
+1. In Zammad einloggen → Admin-Bereich
+2. System → API → Token erstellen
+
+**N8N HTTP Request Node:**
+- Method: `GET`
+- URL: `http://zammad-nginx:8080/api/v1/tickets`
+- Header: `Authorization: Token token=DEIN_API_TOKEN`
+
+### Zammad neu starten
+
+```bash
+docker compose restart zammad-nginx zammad-railsserver zammad-websocket zammad-scheduler
+```
+
+### Zammad Logs anzeigen
+
+```bash
+docker logs -f brainstudio-zammad-railsserver
+```
 
 ## 🎨 Design
 

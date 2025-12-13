@@ -40,6 +40,43 @@ CREATE SCHEMA IF NOT EXISTS storage;
 CREATE SCHEMA IF NOT EXISTS _realtime;
 CREATE SCHEMA IF NOT EXISTS graphql_public;
 
+-- ============================================
+-- STORAGE SCHEMA (für Supabase Storage)
+-- ============================================
+-- Die Storage-API benötigt diese Basis-Tabellen
+-- WICHTIG: path_tokens wird von Storage-Migrations hinzugefügt!
+
+-- Buckets Tabelle
+CREATE TABLE IF NOT EXISTS storage.buckets (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    owner UUID,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Objects Tabelle (OHNE path_tokens - kommt von Storage-Migration 0002!)
+CREATE TABLE IF NOT EXISTS storage.objects (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    bucket_id TEXT REFERENCES storage.buckets(id),
+    name TEXT,
+    owner UUID,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    last_accessed_at TIMESTAMPTZ DEFAULT NOW(),
+    metadata JSONB
+);
+
+-- Indizes für Performance
+CREATE INDEX IF NOT EXISTS idx_objects_bucket_id ON storage.objects(bucket_id);
+CREATE INDEX IF NOT EXISTS idx_objects_name ON storage.objects(name);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_objects_bucket_name ON storage.objects(bucket_id, name);
+
+-- Grants für Storage Schema
+GRANT USAGE ON SCHEMA storage TO anon, authenticated, service_role;
+GRANT ALL ON ALL TABLES IN SCHEMA storage TO anon, authenticated, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA storage TO anon, authenticated, service_role;
+
 -- Extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
